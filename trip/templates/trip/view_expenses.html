@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expenses - {{ trip.name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f4f7;
+            padding: 30px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #ff7e5f;
+        }
+
+        .totals {
+            text-align: center;
+            margin: 20px 0;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .card-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background: #fff;
+            width: 250px;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h3 {
+            margin: 0 0 10px 0;
+            color: #ff7e5f;
+        }
+
+        .card p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .timestamp {
+            margin-top: 10px;
+            font-size: 12px;
+            color: gray;
+            font-style: italic;
+        }
+
+        .back-btn {
+            display: block;
+            width: 150px;
+            text-align: center;
+            margin: 30px auto 0 auto;
+            padding: 10px 0;
+            background: #ccc;
+            color: #333;
+            border-radius: 10px;
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            background: #aaa;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Expenses for "{{ trip.name }}"</h2>
+
+    <div class="totals">
+        Total Expenses: ₹{{ total_expenses }} <br>
+        Remaining Budget: ₹{{ remaining_budget }}
+    </div>
+
+    <div class="card-container">
+        {% for exp in expenses %}
+        <div class="card">
+            <h3>{{ exp.title }}</h3>
+            <p><strong>Amount:</strong> ₹{{ exp.amount }}</p>
+            <p><strong>Category:</strong> {{ exp.category }}</p>
+            {% if exp.custom_category %}
+            <p><strong>Custom Category:</strong> {{ exp.custom_category }}</p>
+            {% endif %}
+            <p><strong>Payment Mode:</strong> {{ exp.payment_mode }}</p>
+            {% if exp.participant %}
+            <p><strong>Participant:</strong> {{ exp.participant }}</p>
+            {% endif %}
+            {% if exp.description %}
+            <!--          <p><strong>Description:</strong> {{ exp.description }}</p>-->
+            {% endif %}
+            <p><strong>Paid By:</strong> {{ exp.paid_by }}</p>
+
+            {% if exp.participant %}
+            <p><strong>Participant:</strong> {{ exp.participant }}</p>
+            {% endif %}
+            {% if exp.description %}
+            <p><strong>Description:</strong> {{ exp.description }}</p>
+            {% endif %}
+            <!-- ✅ Timestamp -->
+            <p class="timestamp">
+                Added On: {{ exp.created_at|date:"M. d, Y h:i A" }}
+            </p>
+        </div>
+        {% empty %}
+        <p>No expenses added yet.</p>
+        {% endfor %}
+    </div>
+
+    <a href="{% url 'trip_history' %}" class="back-btn">Back to Trip History</a>
+</body>
+
+</html>

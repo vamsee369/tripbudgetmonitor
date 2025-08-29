@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Trip</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #ffecd2, #fcb69f);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: #fff;
+            padding: 40px 50px;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            width: 400px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #ff7e5f;
+            margin-bottom: 25px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px 0;
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            background: #ff7e5f;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #feb47b;
+            transform: translateY(-3px);
+        }
+
+        .back-btn {
+            background: #ccc;
+            color: #333;
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .back-btn:hover {
+            background: #aaa;
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 10px;
+        }
+
+        /* Collapsible participants section */
+        .participants-section {
+            display: none;
+            margin-top: 10px;
+        }
+
+        .toggle-btn {
+            background: #74ebd5;
+            color: #333;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+        }
+
+        .toggle-btn:hover {
+            background: #ACB6E5;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>Create New Trip</h2>
+        <form method="POST">
+            {% csrf_token %}
+            <input type="text" name="trip_name" placeholder="Trip Name" required>
+            <input type="text" name="destination" placeholder="Destination" required>
+
+            <label for="start_date">Start Date:</label>
+            <input type="date" name="start_date" required>
+            <label for="end_date">End Date:</label>
+            <input type="date" name="end_date" required>
+
+            <input type="number" step="0.01" name="budget" placeholder="Trip Budget" required>
+
+            <button type="button" class="toggle-btn" onclick="toggleParticipants()">Add Friends</button>
+            <div class="participants-section" id="participants">
+                {% for i in participant_range %}
+                <input type="text" name="friend{{ i }}" placeholder="Friend {{ i }}">
+                {% endfor %}
+            </div>
+
+            <button type="submit" class="btn">Create Trip</button>
+        </form>
+
+        <a href="{% url 'home' %}" class="btn back-btn">Back</a>
+    </div>
+
+    <script>
+        function toggleParticipants() {
+            var section = document.getElementById("participants");
+            if (section.style.display === "none" || section.style.display === "") {
+                section.style.display = "block";
+            } else {
+                section.style.display = "none";
+            }
+        }
+    </script>
+</body>
+
+</html>

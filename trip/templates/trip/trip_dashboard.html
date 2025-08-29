@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - {{ trip.name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f4f7;
+            padding: 30px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #ff7e5f;
+            margin-bottom: 20px;
+        }
+
+        .section {
+            background: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .section h3 {
+            color: #ff7e5f;
+            margin-top: 0;
+        }
+
+        .card-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .card {
+            background: #fefefe;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            flex: 1 1 200px;
+        }
+
+        .card h4 {
+            margin: 0 0 5px 0;
+            color: #ff7e5f;
+        }
+
+        .card p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px 5px 0 0;
+            background: #ff7e5f;
+            color: #fff;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            background: #feb47b;
+        }
+
+        .cost-section {
+            text-align: center;
+            background: #fff;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .cost-section h3 {
+            color: #ff7e5f;
+            margin-bottom: 10px;
+        }
+
+        .cost-section p {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>{{ trip.name }} - Dashboard</h2>
+
+    <div class="section">
+        <h3>Trip Overview</h3>
+        <p><strong>Destination:</strong> {{ trip.destination }}</p>
+        <p><strong>Dates:</strong> {{ trip.start_date }} to {{ trip.end_date }}</p>
+        <p><strong>Total Budget:</strong> ₹{{ trip.budget }}</p>
+        <p><strong>Total Expenses:</strong> ₹{{ total_expenses }}</p>
+        <p><strong>Remaining Budget:</strong> ₹{{ remaining_budget }}</p>
+        <p><strong>Participants:</strong> {{ participants|join:", " }}</p>
+    </div>
+
+    <div class="section">
+        <h3>Expenses</h3>
+        <div class="card-container">
+            {% for exp in expenses %}
+            <div class="card">
+                <h4>{{ exp.title }}</h4>
+                <p><strong>Amount:</strong> ₹{{ exp.amount }}</p>
+                <p><strong>Category:</strong> {{ exp.category }}</p>
+                {% if exp.custom_category %}
+                <p><strong>Custom:</strong> {{ exp.custom_category }}</p>
+                {% endif %}
+                <p><strong>Payment Mode:</strong> {{ exp.payment_mode }}</p>
+                {% if exp.participant %}
+                <p><strong>Paid by:</strong> {{ exp.participant }}</p>
+                {% endif %}
+                {% if exp.description %}
+                <p><strong>Description:</strong> {{ exp.description }}</p>
+                {% endif %}
+            </div>
+            {% empty %}
+            <p>No expenses added yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div style="text-align:center;">
+        <a href="{% url 'add_expense' trip.id %}" class="btn">Add Expense</a>
+        <a href="{% url 'edit_trip' trip.id %}" class="btn">Edit Trip</a>
+        <a href="{% url 'trip_list' %}" class="btn">Back to Trip List</a>
+    </div>
+
+    <!-- 👇 New Cost per Person Section -->
+    <div class="cost-section">
+        <h3>Cost Per Person</h3>
+        <p>₹{{ cost_per_person }}</p>
+    </div>
+
+</body>
+
+</html>

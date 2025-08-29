@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Completed Trips</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f4f7;
+            padding: 30px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #ff7e5f;
+            margin-bottom: 30px;
+        }
+
+        .card-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .card {
+            background: #fff;
+            width: 250px;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h3 {
+            margin: 0 0 10px 0;
+            color: #ff7e5f;
+        }
+
+        .card p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        a.card-link {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .back-btn {
+            display: block;
+            width: 150px;
+            text-align: center;
+            margin: 30px auto 0 auto;
+            padding: 10px 0;
+            background: #ccc;
+            color: #333;
+            border-radius: 10px;
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            background: #aaa;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Completed Trips</h2>
+
+    <div class="card-container">
+        {% for trip in trips %}
+        <a href="{% url 'trip_dashboard' trip.id %}" class="card-link">
+            <div class="card">
+                <h3>{{ trip.name }}</h3>
+                <p><strong>Destination:</strong> {{ trip.destination }}</p>
+                <p><strong>Start:</strong> {{ trip.start_date }}</p>
+                <p><strong>End:</strong> {{ trip.end_date }}</p>
+                <p><strong>Created by:</strong> {{ trip.created_by.username }}</p>
+            </div>
+        </a>
+        {% empty %}
+        <p style="text-align:center;">No completed trips yet.</p>
+        {% endfor %}
+    </div>
+
+    <a href="{% url 'home' %}" class="back-btn">Back Home</a>
+</body>
+
+</html>

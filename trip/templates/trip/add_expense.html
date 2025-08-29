@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Expense - {{ trip.name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #ffecd2, #fcb69f);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: #fff;
+            padding: 30px 40px;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            width: 400px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #ff7e5f;
+            margin-bottom: 25px;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px 0;
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            background: #ff7e5f;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #feb47b;
+            transform: translateY(-3px);
+        }
+
+        .back-btn {
+            background: #ccc;
+            color: #333;
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .back-btn:hover {
+            background: #aaa;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+        }
+
+        label {
+            font-weight: bold;
+            margin-top: 10px;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>Add Expense - {{ trip.name }}</h2>
+
+        {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+            <input type="text" name="title" placeholder="Expense Title" required>
+            <input type="number" step="0.01" name="amount" placeholder="Amount" required>
+
+            <label for="paid_by">Paid By:</label>
+            <select name="paid_by" required>
+                <option value="">-- Select Participant --</option>
+                {% for p in participants %}
+                <option value="{{ p }}">{{ p }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="category">Category:</label>
+            <select name="category" required onchange="toggleCustomCategory(this.value)">
+                <option value="">-- Select Category --</option>
+                <option value="Accommodation">Accommodation</option>
+                <option value="Transport">Transport</option>
+                <option value="Food & Dining">Food & Dining</option>
+                <option value="Drinks">Drinks</option>
+                <option value="Activities & Entertainment">Activities & Entertainment</option>
+                <option value="Shopping & Souvenirs">Shopping & Souvenirs</option>
+                <option value="Emergency / Medical">Emergency / Medical</option>
+                <option value="Tips & Service Charges">Tips & Service Charges</option>
+                <option value="Other">Other</option>
+            </select>
+
+            <input type="text" name="custom_category" id="custom_category" placeholder="Custom Category"
+                style="display:none;">
+
+            <label for="payment_mode">Payment Mode:</label>
+            <select name="payment_mode" required>
+                <option value="">-- Select Payment Mode --</option>
+                <option value="UPI">UPI</option>
+                <option value="Cash">Cash</option>
+                <option value="Card">Card</option>
+            </select>
+
+            <label for="description">Description:</label>
+            <textarea name="description" placeholder="Where and what was the expense" rows="3"></textarea>
+
+            <button type="submit" class="btn">Add Expense</button>
+        </form>
+
+        <a href="{% url 'trip_history' %}" class="btn back-btn">Back to Trip History</a>
+    </div>
+
+    <script>
+        function toggleCustomCategory(value) {
+            const customInput = document.getElementById('custom_category');
+            if (value === 'Other') { customInput.style.display = 'block'; }
+            else { customInput.style.display = 'none'; customInput.value = ''; }
+        }
+    </script>
+</body>
+
+</html>
