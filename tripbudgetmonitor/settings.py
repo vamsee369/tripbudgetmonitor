@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-+$rt(^rw!yr9r#9&86w=0-@pr2(firwt(b_=ipkkm8okc%3k07
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["tripbudgetmonitor.onrender.com"]
 
 
 # Application definition
