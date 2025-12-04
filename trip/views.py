@@ -190,3 +190,15 @@ def edit_trip(request, trip_id):
         return redirect("trip_history")
 
     return render(request, "trip/edit_trip.html", {"trip": trip, "participants": participants})
+
+
+def trip_photos_videos(request):
+
+    drive_links = {
+        "trip_photos": "https://drive.google.com/drive/folders/xxx1",
+        "trip_videos": "https://drive.google.com/drive/folders/xxx2",
+        "trip_expenses": "https://drive.google.com/drive/folders/xxx3",
+        "trip_documents": "https://drive.google.com/drive/folders/xxx4",
+    }
+
+    return render(request, 'trip/trip_photos_videos.html', {"drive_links": drive_links})

@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -25,6 +26,54 @@
             margin-bottom: 20px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
+
+        .photo_gallery {
+            position: relative;
+            height: 400px;
+            border-radius: 25px;
+            overflow: hidden;
+            margin-bottom: 30px;
+            box-shadow: 0 15px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        .gallery-thumbnail {
+            position: absolute;
+            inset: 0;
+            background-image: url("/static/trip/images/thumbnail.jpeg");
+            background-size: cover;
+            background-position: center;
+            filter: brightness(0.80);
+        }
+
+
+        .gallery-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom,
+                    rgba(0, 0, 0, 0.342),
+                    rgba(0, 0, 0, 0.139));
+        }
+
+
+        .photo_gallery h3 {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 28px;
+            margin: 0;
+            z-index: 10;
+            text-align: center;
+        }
+
+        .card-link {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            text-decoration: none;
+        }
+
 
         .section h3 {
             color: #ff7e5f;
@@ -105,7 +154,26 @@
         <p><strong>Remaining Budget:</strong> ₹{{ remaining_budget }}</p>
         <p><strong>Participants:</strong> {{ participants|join:", " }}</p>
     </div>
+    <div class="photo_gallery">
+        <h3>Trip photos🌄</h3>
+        <div class="gallery-thumbnail"></div>
+        <div class="gallery-overlay"></div>
+        <a href="{% url 'trip_photos_videos' %}" class="card-link"></a>
 
+
+
+        <!-- <a href="https://drive.google.com/drive/folders/14TN1Jq7CnjWV3nkuPruJ5qepv39GPPN6" , target="_blank">Click here
+            to view trip photos</a>
+        <div><a href="https://drive.google.com/drive/folders/1tRA3jPeILBkyApxlvd-CbPjAPD3nuE-5" , target="_blank">click
+                here
+                to view trip videos</a></div>
+        <div><a href="https://drive.google.com/drive/folders/1-9r4IZ6KThLYTQmR2QrKITElj-rCXx8p" , target="_blank">Click
+                here
+                to view trip photos-2</a></div>
+        <div><a href="https://drive.google.com/drive/folders/1-AfBxUbCgD0fhSuzFVHBbz1gNZffYXEU" , target="_blank">click
+                here
+                to view trip videos-2</a></div>-->
+    </div>
     <div class="section">
         <h3>Expenses</h3>
         <div class="card-container">
