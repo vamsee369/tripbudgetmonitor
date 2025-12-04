@@ -39,7 +39,8 @@
         .gallery-thumbnail {
             position: absolute;
             inset: 0;
-            background-image: url("/static/trip/images/thumbnail.jpeg");
+            background-image: url("{% static 'trip/images/thumbnail.jpeg' %}");
+
             background-size: cover;
             background-position: center;
             filter: brightness(0.80);
