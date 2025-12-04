@@ -29,7 +29,7 @@
 
         .photo_gallery {
             position: relative;
-            height: 400px;
+            height: 350px;
             border-radius: 25px;
             overflow: hidden;
             margin-bottom: 30px;
@@ -154,26 +154,15 @@
         <p><strong>Remaining Budget:</strong> ₹{{ remaining_budget }}</p>
         <p><strong>Participants:</strong> {{ participants|join:", " }}</p>
     </div>
+    {% if trip.id == 7 %}
     <div class="photo_gallery">
         <h3>Trip photos🌄</h3>
         <div class="gallery-thumbnail"></div>
         <div class="gallery-overlay"></div>
-        <a href="{% url 'trip_photos_videos' %}" class="card-link"></a>
-
-
-
-        <!-- <a href="https://drive.google.com/drive/folders/14TN1Jq7CnjWV3nkuPruJ5qepv39GPPN6" , target="_blank">Click here
-            to view trip photos</a>
-        <div><a href="https://drive.google.com/drive/folders/1tRA3jPeILBkyApxlvd-CbPjAPD3nuE-5" , target="_blank">click
-                here
-                to view trip videos</a></div>
-        <div><a href="https://drive.google.com/drive/folders/1-9r4IZ6KThLYTQmR2QrKITElj-rCXx8p" , target="_blank">Click
-                here
-                to view trip photos-2</a></div>
-        <div><a href="https://drive.google.com/drive/folders/1-AfBxUbCgD0fhSuzFVHBbz1gNZffYXEU" , target="_blank">click
-                here
-                to view trip videos-2</a></div>-->
+        <a href="{% url 'trip_photos_videos' trip.id %}" class="card-link"></a>
     </div>
+    {% endif %}
+
     <div class="section">
         <h3>Expenses</h3>
         <div class="card-container">

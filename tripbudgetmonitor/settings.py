@@ -76,9 +76,10 @@ WSGI_APPLICATION = 'tripbudgetmonitor.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Use the Neon PostgreSQL URL as the default
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
+        default="postgresql://neondb_owner:npg_PqY6VMNE3otS@ep-fragrant-waterfall-a1k4ey8v-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
         conn_max_age=600,
         ssl_require=True
     )
@@ -131,3 +132,6 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/accounts/login/'  # default redirect for @login_required
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

@@ -192,7 +192,8 @@ def edit_trip(request, trip_id):
     return render(request, "trip/edit_trip.html", {"trip": trip, "participants": participants})
 
 
-def trip_photos_videos(request):
+def trip_photos_videos(request, trip_id):
+    trip = get_object_or_404(Trip, id=trip_id)
 
     drive_links = {
         "trip_photos": "https://drive.google.com/drive/folders/xxx1",
@@ -201,4 +202,4 @@ def trip_photos_videos(request):
         "trip_documents": "https://drive.google.com/drive/folders/xxx4",
     }
 
-    return render(request, 'trip/trip_photos_videos.html', {"drive_links": drive_links})
+    return render(request, 'trip/trip_photos_videos.html', {"trip": trip, "drive_links": drive_links})
