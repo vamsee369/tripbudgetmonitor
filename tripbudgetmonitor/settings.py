@@ -17,7 +17,8 @@ SECRET_KEY = 'django-insecure-+$rt(^rw!yr9r#9&86w=0-@pr2(firwt(b_=ipkkm8okc%3k07
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["tripbudgetmonitor.onrender.com", "localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["tripbudgetmonitor.onrender.com",
+                 'https://tripbudgetmonitor-dx6d.onrender.com', "localhost", "127.0.0.1"]
 
 # Application definition
 INSTALLED_APPS = [
