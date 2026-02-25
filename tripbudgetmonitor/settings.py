@@ -25,7 +25,7 @@ DEBUG = os.environ.get("DEBUG", "True") == "True"
 
 ALLOWED_HOSTS = [
     "tripbudgetmonitor.onrender.com",
-    "tripbudgetmonitor-dx6d.onrender.com",
+    'tripexpensetracker.onrender.com',
     "localhost",
     "127.0.0.1",
 ]
