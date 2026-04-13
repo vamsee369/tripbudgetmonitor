@@ -1,6 +1,6 @@
 {
-    "name": "Trip Budget Monitor",
-    "short_name": "TripBudget",
+    "name": "Trip Expense Tracker",
+    "short_name": "ExpenseTracker",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#000000",
