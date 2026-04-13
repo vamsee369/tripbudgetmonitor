@@ -1,3 +1,4 @@
+{%load static%}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -8,7 +9,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background: linear-gradient(to right, #74ebd5, #ACB6E5);
+            background: linear-gradient(to right, #11181ed4, #4354a0a8, #6d17c981);
             margin: 0;
             padding: 20px;
         }
@@ -55,12 +56,12 @@
         }
 
         .status.ongoing {
-            background-color: #ffeb3b;
+            background-color: #979409;
             color: #333;
         }
 
         .status.completed {
-            background-color: #4caf50;
+            background-color: #0b943d;
             color: #fff;
         }
 
@@ -76,7 +77,7 @@
             text-align: center;
             text-decoration: none;
             padding: 10px 0;
-            background: #ff7e5f;
+            background: #a82d38eb;
             color: #fff;
             font-weight: bold;
             border-radius: 8px;
@@ -84,7 +85,7 @@
         }
 
         .btn:hover {
-            background: #feb47b;
+            background: #030553;
             transform: translateY(-2px);
         }
 
@@ -101,6 +102,9 @@
             background: #aaa;
         }
     </style>
+    <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon">
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    <meta name="theme-color" content="#4CAF50">
 </head>
 
 <body>

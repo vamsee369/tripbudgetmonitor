@@ -143,10 +143,10 @@ LOGIN_URL = "/accounts/login/"
 # ---------------------------
 # HTTPS / Security Cookies
 # ---------------------------
-SECURE_SSL_REDIRECT = not DEBUG
+"""SECURE_SSL_REDIRECT = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
-
+"""
 # ---------------------------
 # Optional: PWA Service Worker
 # ---------------------------
