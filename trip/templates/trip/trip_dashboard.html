@@ -874,9 +874,7 @@
 </div><!-- /page -->
 
 <!-- ── Hidden JSON data for JS ───────────────────────────────── -->
-<script id="heatmap-data" type="application/json">{{ heatmap_data|safe }}</script>
-
-<script>
+{{ heatmap_data|json_script:"heatmap-data" }}<script>
   // ── Heatmap ────────────────────────────────────────────────
   (function () {
     const raw  = JSON.parse(document.getElementById('heatmap-data').textContent);
