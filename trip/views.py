@@ -12,10 +12,56 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from io import BytesIO
 
-from .models import Trip, Expense, SplitBill, SplitEntry, SettlementPayment
+from django.db import models as db_models
+from django.core.exceptions import PermissionDenied
+
+from .models import Trip, Expense, SplitBill, SplitEntry, SettlementPayment, TripCollaborator
 
 import pytesseract
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
+
+# ── Access control helpers ─────────────────────────────────────────────────────
+# The owner (trip.created_by) always has full access.
+# Superusers (the developer/site owner) automatically have full access to
+# every trip too, without needing a TripCollaborator row.
+# Everyone else needs a TripCollaborator row: 'view' = read-only, 'edit' = full edit.
+
+def _collab_permission(trip, user):
+    if not user.is_authenticated:
+        return None
+    if user.is_superuser:
+        return "owner"
+    if trip.created_by_id == user.id:
+        return "owner"
+    collab = TripCollaborator.objects.filter(trip=trip, user=user).first()
+    return collab.permission if collab else None
+
+
+def user_can_view(trip, user):
+    return _collab_permission(trip, user) in ("owner", "view", "edit")
+
+
+def user_can_edit(trip, user):
+    return _collab_permission(trip, user) in ("owner", "edit")
+
+
+def visible_trips_for(user):
+    """Trips a user owns, has been given view/edit access to, or — if they're
+    a superuser (the developer) — every trip in the app."""
+    if not user.is_authenticated:
+        return Trip.objects.none()
+    if user.is_superuser:
+        return Trip.objects.all()
+    return Trip.objects.filter(
+        db_models.Q(created_by=user) | db_models.Q(collaborators__user=user)
+    ).distinct()
+
+
+def is_trip_owner(trip, user):
+    """True for the trip's actual creator, or for a superuser (developer)."""
+    return user.is_authenticated and (trip.created_by_id == user.id or user.is_superuser)
+
 
 
 # ── Home ──────────────────────────────────────────────────────────────────────
@@ -23,7 +69,12 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 def home(request):
     ongoing_trip = None
     if request.user.is_authenticated:
-        ongoing_trip = Trip.objects.filter(end_date__gte=date.today()).order_by('-created_at').first()
+        ongoing_trip = (
+            visible_trips_for(request.user)
+            .filter(end_date__gte=date.today())
+            .order_by('-created_at')
+            .first()
+        )
     return render(request, 'trip/home.html', {'ongoing_trip': ongoing_trip})
 
 
@@ -71,23 +122,30 @@ def make_trip(request):
 
 # ── Trip history ──────────────────────────────────────────────────────────────
 
+@login_required
 def trip_history(request):
-    trips = Trip.objects.all().order_by('-created_at', '-start_date')
+    trips = visible_trips_for(request.user).order_by('-created_at', '-start_date')
     return render(request, "trip/trip_history.html", {"trips": trips})
 
 
 # ── Completed trips list ──────────────────────────────────────────────────────
 
+@login_required
 def trip_list(request):
     today = timezone.now().date()
-    completed_trips = Trip.objects.filter(end_date__lt=today)
+    completed_trips = visible_trips_for(request.user).filter(end_date__lt=today)
     return render(request, 'trip/trip_list.html', {'trips': completed_trips})
 
 
 # ── Trip dashboard ────────────────────────────────────────────────────────────
 
+@login_required
 def trip_dashboard(request, trip_id):
     trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_view(trip, request.user):
+        raise PermissionDenied("You don't have access to this trip.")
+    can_edit = user_can_edit(trip, request.user)
+    is_owner = is_trip_owner(trip, request.user)
 
     # Newest first — drives both the heatmap aggregation and "Recent Expenses"
     expenses = list(Expense.objects.filter(trip=trip).order_by('-created_at'))
@@ -174,6 +232,8 @@ def trip_dashboard(request, trip_id):
         'categories_ranked':  categories_ranked,
         'members_ranked':     members_ranked,
         'smart_suggestions':  smart_suggestions,
+        'can_edit':           can_edit,
+        'is_owner':           is_owner,
         # Budget Forecast and Savings Tracker have been removed.
     }
     return render(request, 'trip/trip_dashboard.html', context)
@@ -184,6 +244,9 @@ def trip_dashboard(request, trip_id):
 @login_required
 def ocr_receipt(request, trip_id):
     """POST an image → returns extracted amount, GST, merchant as JSON."""
+    trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_edit(trip, request.user):
+        return JsonResponse({"error": "You don't have edit access to this trip."}, status=403)
     if request.method != "POST":
         return JsonResponse({"error": "POST only"}, status=405)
 
@@ -250,6 +313,8 @@ def ocr_receipt(request, trip_id):
 @login_required
 def add_expense(request, trip_id):
     trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_edit(trip, request.user):
+        raise PermissionDenied("You don't have edit access to this trip.")
 
     if request.method == "POST":
         title        = request.POST.get("title")
@@ -300,8 +365,11 @@ def add_expense(request, trip_id):
 
 # ── View / filter expenses ────────────────────────────────────────────────────
 
+@login_required
 def view_expenses(request, trip_id):
     trip     = get_object_or_404(Trip, id=trip_id)
+    if not user_can_view(trip, request.user):
+        raise PermissionDenied("You don't have access to this trip.")
     expenses = Expense.objects.filter(trip=trip).order_by('-created_at')
 
     date_from    = request.GET.get('date_from', '')
@@ -364,6 +432,7 @@ def view_expenses(request, trip_id):
         "f_favorites":      favorites,
         "f_receipt_type":   receipt_type,
         "f_search_q":       search_q,
+        "can_edit":         user_can_edit(trip, request.user),
         "any_filter_active": any([
             date_from, date_to, member, category, payment_mode,
             amount_min, amount_max, recurring, favorites, receipt_type, search_q,
@@ -379,6 +448,8 @@ def toggle_favorite(request, expense_id):
     if request.method != "POST":
         return JsonResponse({"error": "POST only"}, status=405)
     expense = get_object_or_404(Expense, id=expense_id)
+    if not user_can_edit(expense.trip, request.user):
+        return JsonResponse({"error": "You don't have edit access to this trip."}, status=403)
     expense.is_favorite = not expense.is_favorite
     expense.save(update_fields=["is_favorite"])
     return JsonResponse({"is_favorite": expense.is_favorite})
@@ -389,6 +460,8 @@ def toggle_favorite(request, expense_id):
 @login_required
 def edit_trip(request, trip_id):
     trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_edit(trip, request.user):
+        raise PermissionDenied("You don't have edit access to this trip.")
 
     participants = trip.get_participants()
     while len(participants) < 15:
@@ -406,13 +479,77 @@ def edit_trip(request, trip_id):
         trip.save()
         return redirect("trip_history")
 
-    return render(request, "trip/edit_trip.html", {"trip": trip, "participants": participants})
+    return render(request, "trip/edit_trip.html", {
+        "trip": trip,
+        "participants": participants,
+        "is_owner": is_trip_owner(trip, request.user),
+    })
+
+
+# ── Manage access (owner only) ────────────────────────────────────────────────
+
+@login_required
+def manage_access(request, trip_id):
+    trip = get_object_or_404(Trip, id=trip_id)
+    if not is_trip_owner(trip, request.user):
+        raise PermissionDenied("Only the trip owner can manage access.")
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "add":
+            username = (request.POST.get("username") or "").strip()
+            permission = request.POST.get("permission", "view")
+            if permission not in ("view", "edit"):
+                permission = "view"
+
+            if not username:
+                return render(request, "trip/manage_access.html", {
+                    "trip": trip,
+                    "collaborators": trip.collaborators.select_related("user"),
+                    "error": "Enter a username.",
+                })
+
+            from django.contrib.auth.models import User
+            target = User.objects.filter(username=username).first()
+
+            if not target:
+                error = "No user with that username."
+            elif target.id == request.user.id:
+                error = "You already own this trip."
+            else:
+                error = None
+                TripCollaborator.objects.update_or_create(
+                    trip=trip, user=target,
+                    defaults={"permission": permission},
+                )
+
+            if error:
+                return render(request, "trip/manage_access.html", {
+                    "trip": trip,
+                    "collaborators": trip.collaborators.select_related("user"),
+                    "error": error,
+                })
+
+        elif action == "remove":
+            collab_id = request.POST.get("collab_id")
+            TripCollaborator.objects.filter(id=collab_id, trip=trip).delete()
+
+        return redirect("manage_access", trip_id=trip.id)
+
+    return render(request, "trip/manage_access.html", {
+        "trip": trip,
+        "collaborators": trip.collaborators.select_related("user"),
+    })
 
 
 # ── Trip photos/videos ────────────────────────────────────────────────────────
 
+@login_required
 def trip_photos_videos(request, trip_id):
     trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_view(trip, request.user):
+        raise PermissionDenied("You don't have access to this trip.")
     drive_links = {
         "trip_photos":    "https://drive.google.com/drive/folders/xxx1",
         "trip_videos":    "https://drive.google.com/drive/folders/xxx2",
@@ -490,7 +627,9 @@ def get_smart_suggestions(trip, expenses):
 
 @login_required
 def split_bill(request, trip_id):
-    trip         = get_object_or_404(Trip, id=trip_id)
+    trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_edit(trip, request.user):
+        raise PermissionDenied("You don't have edit access to this trip.")
     participants = trip.get_participants()
     past_splits  = SplitBill.objects.filter(trip=trip).prefetch_related("entries").order_by("-created_at")
 
@@ -550,8 +689,11 @@ def split_bill(request, trip_id):
 
 # ── Settlement ────────────────────────────────────────────────────────────────
 
+@login_required
 def settlement(request, trip_id):
-    trip   = get_object_or_404(Trip, id=trip_id)
+    trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_view(trip, request.user):
+        raise PermissionDenied("You don't have access to this trip.")
     splits = SplitBill.objects.filter(trip=trip).prefetch_related("entries")
 
     net = defaultdict(Decimal)
@@ -588,7 +730,7 @@ def settlement(request, trip_id):
 
     return render(request, "trip/settlement.html", {
         "trip": trip, "splits": splits, "net": dict(net), "transactions": transactions,
-        "payments": payments,
+        "payments": payments, "can_edit": user_can_edit(trip, request.user),
     })
 
 
@@ -596,6 +738,8 @@ def settlement(request, trip_id):
 def mark_settlement_paid(request, trip_id):
     """Record a real payment so it persists across reloads (Splitwise-style)."""
     trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_edit(trip, request.user):
+        raise PermissionDenied("You don't have edit access to this trip.")
     if request.method == "POST":
         from_person = request.POST.get("from_person", "").strip()
         to_person   = request.POST.get("to_person", "").strip()
@@ -615,6 +759,8 @@ def mark_settlement_paid(request, trip_id):
 def unmark_settlement_paid(request, trip_id, payment_id):
     """Undo a recorded payment — puts the debt back."""
     trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_edit(trip, request.user):
+        raise PermissionDenied("You don't have edit access to this trip.")
     payment = get_object_or_404(SettlementPayment, id=payment_id, trip=trip)
     if request.method == "POST":
         payment.delete()
@@ -623,11 +769,14 @@ def unmark_settlement_paid(request, trip_id, payment_id):
 
 # ── Export PDF ────────────────────────────────────────────────────────────────
 
+@login_required
 def export_expenses_pdf(request, trip_id):
     from weasyprint import HTML
     from django.template.loader import render_to_string
 
-    trip     = get_object_or_404(Trip, id=trip_id)
+    trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_view(trip, request.user):
+        raise PermissionDenied("You don't have access to this trip.")
     expenses = Expense.objects.filter(trip=trip).order_by('-created_at')
 
     total_expenses   = sum(Decimal(e.amount) for e in expenses)
@@ -888,6 +1037,8 @@ def spending_heatmap(request, trip_id):
     """Full analytics page."""
     import json as _json
     trip  = get_object_or_404(Trip, id=trip_id)
+    if not user_can_view(trip, request.user):
+        raise PermissionDenied("You don't have access to this trip.")
     today = date.today()
     year  = int(request.GET.get('year',  trip.start_date.year))
     month = int(request.GET.get('month', trip.start_date.month))
@@ -895,11 +1046,16 @@ def spending_heatmap(request, trip_id):
     ctx['trip'] = trip
 
     # ── Upcoming Trips — this user's other trips that haven't started yet ──
-    upcoming_trips_qs = (
-        Trip.objects.filter(created_by=trip.created_by, start_date__gte=today)
-                    .exclude(id=trip.id)
-                    .order_by('start_date')[:5]
-    )
+    # Only shown to the trip's owner, so collaborators never see a list of
+    # the owner's other (unrelated) trips.
+    if trip.created_by_id == request.user.id:
+        upcoming_trips_qs = (
+            Trip.objects.filter(created_by=trip.created_by, start_date__gte=today)
+                        .exclude(id=trip.id)
+                        .order_by('start_date')[:5]
+        )
+    else:
+        upcoming_trips_qs = Trip.objects.none()
     upcoming_trips = [
         {
             'id':          t.id,
@@ -928,7 +1084,9 @@ def spending_heatmap(request, trip_id):
 @login_required
 def heatmap_ajax(request, trip_id):
     """AJAX — returns JSON for month navigation without page reload."""
-    trip  = get_object_or_404(Trip, id=trip_id)
+    trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_view(trip, request.user):
+        return JsonResponse({"error": "You don't have access to this trip."}, status=403)
     today = date.today()
     year  = int(request.GET.get('year',  today.year))
     month = int(request.GET.get('month', today.month))
@@ -946,3 +1104,7 @@ def offline_view(request):
 
 def custom_404(request, exception=None):
     return render(request, '404.html', status=404)
+
+
+def custom_403(request, exception=None):
+    return render(request, '403.html', status=403)

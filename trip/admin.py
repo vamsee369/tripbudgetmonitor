@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Trip, Expense, SplitBill, SplitEntry, SettlementPayment
+from .models import Trip, Expense, SplitBill, SplitEntry, SettlementPayment, TripCollaborator
 
 
 @admin.register(Trip)
@@ -51,3 +51,10 @@ class SettlementPaymentAdmin(admin.ModelAdmin):
     list_display = ('trip', 'from_person', 'to_person', 'amount', 'created_at')
     list_filter = ('trip',)
     search_fields = ('from_person', 'to_person')
+
+
+@admin.register(TripCollaborator)
+class TripCollaboratorAdmin(admin.ModelAdmin):
+    list_display = ('trip', 'user', 'permission', 'added_at')
+    list_filter = ('permission',)
+    search_fields = ('trip__name', 'user__username')

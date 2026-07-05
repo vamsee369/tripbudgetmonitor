@@ -1,0 +1,218 @@
+{%load static%}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Manage Access – {{ trip.name }}</title>
+  <link rel="manifest" href="{% static 'manifest.json' %}"/>
+  <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon"/>
+  <meta name="theme-color" content="#6366f1"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f0f4f8;
+      --white:     #ffffff;
+      --surface:   #f8f9ff;
+      --border:    #e5e7eb;
+      --accent:    #6366f1;
+      --accent-lt: #eef2ff;
+      --accent-md: #c7d2fe;
+      --green:     #10b981;
+      --green-lt:  #d1fae5;
+      --red:       #ef4444;
+      --red-lt:    #fee2e2;
+      --yellow:    #f59e0b;
+      --yellow-lt: #fef3c7;
+      --text:      #1f2937;
+      --text-md:   #374151;
+      --muted:     #6b7280;
+      --muted-lt:  #9ca3af;
+      --radius:    20px;
+      --radius-sm: 12px;
+      --shadow:    0 4px 24px rgba(0,0,0,.07);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.05);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .topbar {
+      background: var(--white);
+      border-bottom: 1.5px solid var(--border);
+      padding: 14px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .topbar-brand { display: flex; align-items: center; gap: 10px; flex: 1; }
+    .brand-icon { font-size: 1.5rem; }
+    .bname { font-weight: 700; font-size: .95rem; }
+    .btag { font-size: .72rem; color: var(--muted); }
+    .back-link {
+      display: flex; align-items: center; gap: 4px;
+      font-size: .82rem; font-weight: 600; color: var(--accent);
+      text-decoration: none; padding: 8px 12px;
+      border-radius: 10px; background: var(--accent-lt);
+    }
+
+    .page { max-width: 640px; margin: 0 auto; padding: 20px 16px 60px; }
+
+    .hero-card {
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+      display: flex; align-items: center; gap: 14px;
+      color: #fff; margin-bottom: 20px;
+      box-shadow: var(--shadow);
+    }
+    .hero-emoji { font-size: 2rem; }
+    .hero-text h1 { font-size: 1.25rem; margin-bottom: 4px; }
+    .hero-text p { font-size: .85rem; opacity: .9; }
+
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+    .card h2 {
+      font-size: 1rem; margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .field-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .field-group label { font-size: .8rem; font-weight: 600; color: var(--text-md); }
+    .field-group input, .field-group select {
+      padding: 12px 14px; border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); font-size: .9rem; background: var(--surface);
+    }
+    .field-group input:focus, .field-group select:focus {
+      outline: none; border-color: var(--accent);
+    }
+
+    .btn-primary {
+      background: var(--accent); color: #fff; border: none;
+      padding: 12px 18px; border-radius: var(--radius-sm);
+      font-size: .9rem; font-weight: 700; cursor: pointer; width: 100%;
+    }
+    .btn-primary:hover { background: #4f46e5; }
+
+    .error-box {
+      background: var(--red-lt); color: #b91c1c;
+      padding: 10px 14px; border-radius: var(--radius-sm);
+      font-size: .82rem; margin-bottom: 14px;
+    }
+
+    .collab-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+      gap: 10px;
+    }
+    .collab-row:last-child { border-bottom: none; }
+    .collab-name { font-weight: 600; font-size: .88rem; }
+    .collab-perm {
+      font-size: .72rem; font-weight: 700; padding: 3px 10px;
+      border-radius: 999px; text-transform: uppercase; letter-spacing: .3px;
+    }
+    .perm-view { background: var(--yellow-lt); color: #92400e; }
+    .perm-edit { background: var(--green-lt); color: #065f46; }
+
+    .remove-btn {
+      background: var(--red-lt); color: var(--red); border: none;
+      padding: 8px 12px; border-radius: 10px; font-size: .78rem;
+      font-weight: 700; cursor: pointer;
+    }
+    .remove-btn:hover { background: #fecaca; }
+
+    .empty-state {
+      text-align: center; padding: 20px; color: var(--muted); font-size: .85rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="brand-icon">✈️</div>
+    <div class="brand-text">
+      <div class="bname">Trip Budget Monitor</div>
+      <div class="btag">Smart travel spending tracker</div>
+    </div>
+  </div>
+  <a href="{% url 'trip_dashboard' trip.id %}" class="back-link">
+    <i class="ti ti-arrow-left" style="font-size:.85rem;"></i> Back
+  </a>
+</div>
+
+<div class="page">
+
+  <div class="hero-card">
+    <span class="hero-emoji">🔑</span>
+    <div class="hero-text">
+      <h1>Manage Access</h1>
+      <p>Choose who can see or edit <strong>{{ trip.name }}</strong></p>
+    </div>
+  </div>
+
+  {% if error %}
+    <div class="error-box">{{ error }}</div>
+  {% endif %}
+
+  <div class="card">
+    <h2>➕ Add someone</h2>
+    <form method="POST">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add">
+      <div class="field-group">
+        <label>Username</label>
+        <input type="text" name="username" placeholder="Their exact username" required>
+      </div>
+      <div class="field-group">
+        <label>Permission</label>
+        <select name="permission">
+          <option value="view">View only — can see the trip, can't edit</option>
+          <option value="edit">Can edit — add expenses, splits, trip details</option>
+        </select>
+      </div>
+      <button type="submit" class="btn-primary">Grant access</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>👥 People with access</h2>
+    {% if collaborators %}
+      {% for c in collaborators %}
+        <div class="collab-row">
+          <div>
+            <div class="collab-name">{{ c.user.username }}</div>
+            <span class="collab-perm {% if c.permission == 'edit' %}perm-edit{% else %}perm-view{% endif %}">
+              {{ c.get_permission_display }}
+            </span>
+          </div>
+          <form method="POST" onsubmit="return confirm('Remove {{ c.user.username }} from this trip?');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="remove">
+            <input type="hidden" name="collab_id" value="{{ c.id }}">
+            <button type="submit" class="remove-btn">Remove</button>
+          </form>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">Only you can see this trip right now.</div>
+    {% endif %}
+  </div>
+
+</div>
+</body>
+</html>

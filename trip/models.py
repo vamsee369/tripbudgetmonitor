@@ -182,3 +182,26 @@ class SettlementPayment(models.Model):
 
     def __str__(self):
         return f"{self.from_person} → {self.to_person}: ₹{self.amount}"
+
+
+class TripCollaborator(models.Model):
+    """
+    Grants a specific user access to a trip they don't own.
+    'view'  -> can see the trip, expenses, dashboards, exports (read-only).
+    'edit'  -> can also add/edit expenses, splits, settlements, and trip details.
+    The trip owner (Trip.created_by) always has full access and never needs a row here.
+    """
+    PERMISSION_CHOICES = [
+        ("view", "View only"),
+        ("edit", "Can edit"),
+    ]
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name="collaborators")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="shared_trips")
+    permission = models.CharField(max_length=10, choices=PERMISSION_CHOICES, default="view")
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("trip", "user")
+
+    def __str__(self):
+        return f"{self.user.username} → {self.trip.name} ({self.permission})"

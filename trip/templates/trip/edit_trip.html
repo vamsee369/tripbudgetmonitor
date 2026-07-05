@@ -421,6 +421,12 @@
       </button>
     </form>
 
+    {% if is_owner %}
+    <a href="{% url 'manage_access' trip.id %}" class="btn-secondary" style="margin-top:10px;">
+      <i class="ti ti-key"></i> Manage Access
+    </a>
+    {% endif %}
+
     <a href="{% url 'trip_history' %}" class="btn-secondary">
       <i class="ti ti-arrow-left"></i> Cancel
     </a>

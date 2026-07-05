@@ -10,6 +10,7 @@ urlpatterns = [
     path('trip/<int:trip_id>/view-expenses/', views.view_expenses, name='view_expenses'),
     path('trip/<int:trip_id>/add-expense/', views.add_expense, name='add_expense'),
     path('trip/<int:trip_id>/edit/', views.edit_trip, name='edit_trip'),
+    path('trip/<int:trip_id>/access/', views.manage_access, name='manage_access'),
     path('trip/<int:trip_id>/dashboard/', views.trip_dashboard, name='trip_dashboard'),
     path('trip/<int:trip_id>/photos/', views.trip_photos_videos, name='trip_photos_videos'),
 

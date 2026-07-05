@@ -602,9 +602,11 @@
     <h1>{{ trip.name }}</h1>
     <p>{{ trip.destination }} · {{ trip.start_date }} → {{ trip.end_date }}</p>
   </div>
+  {% if can_edit %}
   <a href="{% url 'add_expense' trip.id %}" class="topbar-action">
     <i class="ti ti-plus"></i> Add
   </a>
+  {% endif %}
 </div>
 
 <div class="page">
@@ -689,27 +691,38 @@
 
   <!-- ── Quick Actions ─────────────────────────────────────── -->
   <div class="actions-row">
+    {% if can_edit %}
     <a href="{% url 'add_expense' trip.id %}" class="action-btn primary">
       <i class="ti ti-plus"></i> Add Expense
     </a>
+    {% endif %}
     <a href="{% url 'view_expenses' trip.id %}" class="action-btn">
       <i class="ti ti-list"></i> All Expenses
     </a>
+    {% if can_edit %}
     <a href="{% url 'split_bill' trip.id %}" class="action-btn">
       <i class="ti ti-arrows-split"></i> Split Bill
     </a>
+    {% endif %}
     <a href="{% url 'settlement' trip.id %}" class="action-btn">
       <i class="ti ti-cash"></i> Settlement
     </a>
+    {% if can_edit %}
     <a href="{% url 'edit_trip' trip.id %}" class="action-btn">
       <i class="ti ti-edit"></i> Edit Trip
     </a>
+    {% endif %}
 <a href="{% url 'export_expenses_pdf' trip.id %}" class="action-btn">
       <i class="ti ti-file-type-pdf"></i> Export PDF
     </a>
     <a href="{% url 'spending_heatmap' trip.id %}" class="action-btn">
       <i class="ti ti-chart-dots"></i> Analytics
     </a>
+    {% if is_owner %}
+    <a href="{% url 'manage_access' trip.id %}" class="action-btn">
+      <i class="ti ti-key"></i> Manage Access
+    </a>
+    {% endif %}
   </div>
 
   <!-- ── Top Spending Category ─────────────────────────────── -->
@@ -848,7 +861,7 @@
     </div>
     {% empty %}
     <p style="color:var(--muted-lt);font-size:.85rem;text-align:center;padding:20px 0;">
-      No expenses yet. <a href="{% url 'add_expense' trip.id %}" style="color:var(--accent);font-weight:600;">Add your first →</a>
+      No expenses yet.{% if can_edit %} <a href="{% url 'add_expense' trip.id %}" style="color:var(--accent);font-weight:600;">Add your first →</a>{% endif %}
     </p>
     {% endfor %}
   </div>

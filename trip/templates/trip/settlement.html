@@ -360,6 +360,7 @@
           <span class="to"><i class="ti ti-user" style="font-size:.85rem;"></i>{{ t.to_person }}</span>
           <span class="amt">₹{{ t.amount }}</span>
         </div>
+        {% if can_edit %}
         <form method="post" action="{% url 'mark_settlement_paid' trip.id %}" style="margin:0;">
           {% csrf_token %}
           <input type="hidden" name="from_person" value="{{ t.from_person }}">
@@ -369,6 +370,7 @@
             <i class="ti ti-check" style="font-size:.8rem;"></i> Mark Paid
           </button>
         </form>
+        {% endif %}
       </div>
       {% endfor %}
     {% else %}
@@ -399,12 +401,14 @@
         <span class="to"><i class="ti ti-user" style="font-size:.85rem;"></i>{{ p.to_person }}</span>
         <span class="amt">₹{{ p.amount }}</span>
       </div>
+      {% if can_edit %}
       <form method="post" action="{% url 'unmark_settlement_paid' trip.id p.id %}" style="margin:0;">
         {% csrf_token %}
         <button type="submit" class="mark-btn" style="background:var(--red-lt);border-color:#fca5a5;color:#991b1b;">
           <i class="ti ti-rotate-clockwise" style="font-size:.8rem;"></i> Undo
         </button>
       </form>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
@@ -497,9 +501,11 @@
 
   <!-- Action buttons -->
   <div class="cta-row">
+    {% if can_edit %}
     <a href="{% url 'split_bill' trip.id %}" class="btn-primary">
       <i class="ti ti-plus"></i> New Split
     </a>
+    {% endif %}
     <a href="{% url 'trip_dashboard' trip.id %}" class="btn-secondary">
       <i class="ti ti-layout-dashboard"></i> Dashboard
     </a>

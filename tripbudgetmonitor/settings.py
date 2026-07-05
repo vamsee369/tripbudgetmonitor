@@ -134,13 +134,13 @@ LOGIN_URL = "/accounts/login/"
 # ---------------------------
 # HTTPS / Security Cookies
 # ---------------------------
-SECURE_SSL_REDIRECT = not DEBUG
+"""SECURE_SSL_REDIRECT = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS = 'DENY'"""
 JAZZMIN_SETTINGS = {
     "site_title": "Trip Budget Admin",
     "site_header": "Trip Budget Monitor",

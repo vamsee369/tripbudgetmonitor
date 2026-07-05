@@ -36,3 +36,4 @@ if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 handler404 = 'trip.views.custom_404'
+handler403 = 'trip.views.custom_403'
