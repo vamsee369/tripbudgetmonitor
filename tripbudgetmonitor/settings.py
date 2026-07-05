@@ -36,6 +36,7 @@ ALLOWED_HOSTS = [
 # Installed apps
 # ---------------------------
 INSTALLED_APPS = [
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -115,7 +116,7 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]  # Local static files
 STATIC_ROOT = BASE_DIR / "staticfiles"    # Collected static files
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -140,14 +141,54 @@ SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
+JAZZMIN_SETTINGS = {
+    "site_title": "Trip Budget Admin",
+    "site_header": "Trip Budget Monitor",
+    "site_brand": "TripBudget",
+    "welcome_sign": "Welcome to Trip Budget Monitor Admin",
+    "copyright": "Trip Budget Monitor",
 
-# ---------------------------
-# Optional: PWA Service Worker
-# ---------------------------
-# Place your service worker in /static/js/service-worker.js
-# Make sure to add it in your base template:
-# <script>
-#   if ('serviceWorker' in navigator) {
-#       navigator.serviceWorker.register("{% static 'js/service-worker.js' %}");
-#   }
-# </script>
+    # Top menu
+    "topmenu_links": [
+        {"name": "Home", "url": "admin:index"},
+        {"name": "View Site", "url": "/", "new_window": True},
+    ],
+
+    # Side menu icons (uses Font Awesome)
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "trip.trip": "fas fa-plane",
+        "trip.expense": "fas fa-receipt",
+        "trip.tripmember": "fas fa-users",
+        "trip.splitbill": "fas fa-divide",
+        "trip.settlementpayment": "fas fa-handshake",
+    },
+
+    "default_icon_parents": "fas fa-folder",
+    "default_icon_children": "fas fa-circle",
+
+    # UI tweaks
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "hide_apps": [],
+    "hide_models": [],
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "theme": "flatly",          # clean white theme — matches your site
+    "dark_mode_theme": "darkly",
+    "navbar": "navbar-white navbar-light",
+    "sidebar": "sidebar-light-primary",
+    "brand_colour": "navbar-primary",
+    "accent": "accent-primary",
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success",
+    },
+}
+
