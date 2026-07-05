@@ -405,5 +405,98 @@
     btn.classList.toggle('open');
   }
 </script>
+<!-- ── Page Transition Loader ── -->
+<div id="page-loader" style="
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:99999;
+  background:#f0f4f8;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:28px;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="width:48px;height:48px;background:#6366f1;border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(99,102,241,0.35);">
+      <i class="ti ti-plane" style="font-size:24px;color:#fff;"></i>
+    </div>
+    <span style="font-size:20px;font-weight:700;color:#1f2937;">TripBudget</span>
+  </div>
+
+  <div style="position:relative;width:72px;height:72px;">
+    <div style="position:absolute;inset:0;border-radius:50%;border:3px solid transparent;border-top-color:#6366f1;animation:_spin 1s linear infinite;"></div>
+    <div style="position:absolute;inset:10px;border-radius:50%;border:3px solid transparent;border-right-color:#7c3aed;animation:_spin 0.75s linear infinite reverse;"></div>
+    <div style="position:absolute;inset:20px;border-radius:50%;border:3px solid transparent;border-bottom-color:#a855f7;animation:_spin 0.5s linear infinite;"></div>
+  </div>
+
+  <div style="width:180px;">
+    <div style="height:4px;background:#e5e7eb;border-radius:99px;overflow:hidden;">
+      <div id="loader-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#6366f1,#7c3aed);border-radius:99px;transition:width 0.3s ease;"></div>
+    </div>
+  </div>
+
+  <div id="loader-text" style="font-size:13px;color:#6b7280;transition:opacity 0.2s;">Navigating...</div>
+</div>
+
+<style>
+  @keyframes _spin { to { transform:rotate(360deg); } }
+</style>
+
+<script>
+(function () {
+  const loader   = document.getElementById('page-loader');
+  const bar      = document.getElementById('loader-bar');
+  const txt      = document.getElementById('loader-text');
+
+  const messages = [
+    'Navigating...', 'Loading your data...', 'Almost there...', 'Getting things ready...'
+  ];
+
+  function showLoader() {
+    loader.style.display = 'flex';
+    let progress = 0;
+    let msgIndex = 0;
+
+    // fast initial jump to 60%, then slow crawl
+    setTimeout(() => { bar.style.width = '60%'; }, 50);
+    setTimeout(() => { bar.style.width = '75%'; }, 400);
+    setTimeout(() => { bar.style.width = '85%'; }, 900);
+    setTimeout(() => { bar.style.width = '92%'; }, 1600);
+
+    // rotate messages
+    const msgInterval = setInterval(() => {
+      msgIndex = (msgIndex + 1) % messages.length;
+      txt.style.opacity = 0;
+      setTimeout(() => {
+        txt.textContent = messages[msgIndex];
+        txt.style.opacity = 1;
+      }, 200);
+    }, 1500);
+  }
+
+  // intercept all <a> clicks except external, hash, download links
+  document.addEventListener('click', function (e) {
+    const a = e.target.closest('a[href]');
+    if (!a) return;
+    const href = a.getAttribute('href');
+    if (!href || href.startsWith('#') || href.startsWith('http') || href.startsWith('mailto') || a.hasAttribute('download') || a.target === '_blank') return;
+    showLoader();
+  });
+
+  // intercept all form submits
+  document.addEventListener('submit', function (e) {
+    const form = e.target;
+    if (form.method && form.method.toLowerCase() === 'get') return; // skip search/filter forms if needed
+    showLoader();
+  });
+
+  // hide loader if user presses back button
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) loader.style.display = 'none';
+  });
+})();
+</script>
 </body>
 </html>

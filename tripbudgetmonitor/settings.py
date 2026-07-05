@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ---------------------------
 SECRET_KEY = os.environ.get("SECRET_KEY")
 
-DEBUG = os.environ.get("DEBUG", "True") == "True"
+DEBUG = False
 
 ALLOWED_HOSTS = [
     'tripexpensetracker.onrender.com',
@@ -69,7 +69,7 @@ ROOT_URLCONF = "tripbudgetmonitor.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

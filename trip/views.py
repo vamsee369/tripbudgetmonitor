@@ -934,3 +934,15 @@ def heatmap_ajax(request, trip_id):
     month = int(request.GET.get('month', today.month))
     data  = _heatmap_build(trip, year, month)
     return JsonResponse(data)
+def loading_view(request):
+    next_url    = request.GET.get('next', '/')
+    redirect_ms = int(request.GET.get('ms', 800))
+    return render(request, 'trip/loading.html', {
+        'next_url': next_url, 'redirect_ms': redirect_ms,
+    })
+
+def offline_view(request):
+    return render(request, 'offline.html')
+
+def custom_404(request, exception=None):
+    return render(request, '404.html', status=404)

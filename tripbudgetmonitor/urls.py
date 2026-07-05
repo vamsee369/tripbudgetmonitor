@@ -18,13 +18,21 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import FileResponse
+import os
+
+def serve_sw(request):
+    sw_path = os.path.join(settings.BASE_DIR, 'static', 'service-worker.js')
+    return FileResponse(open(sw_path, 'rb'), content_type='application/javascript')
 
 urlpatterns = [
     path("vamsee/", admin.site.urls),
     path("", include("trip.urls")),
     path("accounts/", include("accounts.urls")),
+    path("service-worker.js", serve_sw),
 ]
 
-# ✅ Serve uploaded media files during development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+handler404 = 'trip.views.custom_404'

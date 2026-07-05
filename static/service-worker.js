@@ -1,16 +1,14 @@
-const CACHE_NAME = "tripbudget-v4"; // increment version when updating
+const CACHE_NAME = "tripbudget-v5"; // incremented
+
 const STATIC_ASSETS = [
-    "/",                         // home page
+    "/",
+    "/offline/",                              // ✅ cache the offline page
     "/static/manifest.json",
-    "/static/css/style.css",
-    "/static/js/main.js",
-    "/static/images/logo.png",
-    "/static/trip/images/icon-192x192.png",  // PWA icon
-    "/static/trip/images/icon-512x512.png",  // PWA icon
-    // add any other static files you want to pre-cache
+    "/static/trip/images/icon-192x192-v2.png",
+    "/static/trip/images/icon-512x512-v2.png",
 ];
 
-// Install: pre-cache static assets
+// Install: pre-cache static assets including offline page
 self.addEventListener("install", (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
@@ -38,7 +36,7 @@ self.addEventListener("fetch", (event) => {
 
     const requestURL = new URL(event.request.url);
 
-    // 1️⃣ Handle API requests (dynamic caching)
+    // 1️⃣ API requests — network first, empty fallback if offline
     if (requestURL.pathname.startsWith("/api/")) {
         event.respondWith(
             caches.match(event.request).then((cached) => {
@@ -48,7 +46,6 @@ self.addEventListener("fetch", (event) => {
                         return response;
                     });
                 }).catch(() => {
-                    // Return empty array if offline
                     return new Response(JSON.stringify([]), {
                         headers: { "Content-Type": "application/json" }
                     });
@@ -58,30 +55,34 @@ self.addEventListener("fetch", (event) => {
         return;
     }
 
-    // 2️⃣ Handle HTML pages (dynamic caching)
+    // 2️⃣ HTML pages — network first, show offline page if failed
     if (event.request.destination === "document") {
         event.respondWith(
-            caches.match(event.request).then((cachedResponse) => {
-                if (cachedResponse) return cachedResponse;
-
-                return fetch(event.request)
-                    .then((response) => {
-                        caches.open(CACHE_NAME).then((cache) => {
-                            cache.put(event.request, response.clone());
-                        });
-                        return response;
-                    })
-                    .catch(() => caches.match("/")); // fallback to home
-            })
+            fetch(event.request)
+                .then((response) => {
+                    // cache every page the user visits
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, response.clone());
+                    });
+                    return response;
+                })
+                .catch(() => {
+                    // offline — try the cached version of this page first
+                    return caches.match(event.request).then((cached) => {
+                        if (cached) return cached;
+                        // no cached version → show offline page
+                        return caches.match("/offline/");
+                    });
+                })
         );
         return;
     }
 
-    // 3️⃣ Handle other static assets (CSS, JS, images) - cache first
+    // 3️⃣ Static assets (CSS, JS, images) — cache first
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             return cachedResponse || fetch(event.request).then((response) => {
-                if (response.status === 200 && event.request.destination !== "document") {
+                if (response.status === 200) {
                     caches.open(CACHE_NAME).then((cache) => {
                         cache.put(event.request, response.clone());
                     });
