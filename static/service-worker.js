@@ -1,4 +1,4 @@
-const CACHE_NAME = "tripbudget-v7";
+const CACHE_NAME = "tripbudget-v8";
 
 // Only pre-cache files guaranteed to return 200 — no Django views here
 const STATIC_ASSETS = [
