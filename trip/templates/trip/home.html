@@ -1,120 +1,1017 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trip Budget Monitor</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Trip Budget Monitor</title>
+  <link rel="manifest" href="{% static 'manifest.json' %}"/>
+  <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon"/>
+  <meta name="theme-color" content="#6366f1"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    <!-- PWA manifest -->
-    <link rel="manifest" href="{% static 'manifest.json' %}">
-    <meta name="theme-color" content="#000000">
+:root {
+  --bg:        #f0f4f8;
+  --white:     #ffffff;
+  --surface:   #f8f9ff;
+  --border:    #e5e7eb;
+  --accent:    #6366f1;
+  --accent-lt: #eef2ff;
+  --accent-md: #c7d2fe;
+  --green:     #10b981;
+  --green-lt:  #d1fae5;
+  --red:       #ef4444;
+  --red-lt:    #fee2e2;
+  --yellow:    #f59e0b;
+  --yellow-lt: #fef3c7;
+  --purple:    #7c3aed;
+  --purple-lt: #ede9fe;
+  --orange:    #f97316;
+  --orange-lt: #ffedd5;
+  --text:      #1f2937;
+  --text-md:   #374151;
+  --muted:     #6b7280;
+  --muted-lt:  #9ca3af;
+  --radius:    20px;
+  --radius-sm: 12px;
+  --shadow:    0 4px 24px rgba(0,0,0,.07);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.05);
+}
 
-    <!-- Favicon -->
+[data-theme="dark"] {
+  --bg:        #0f1117;
+  --white:     #1a1d27;
+  --surface:   #1e2130;
+  --border:    #2d3148;
+  --accent:    #818cf8;
+  --accent-lt: #1e2040;
+  --accent-md: #4338ca;
+  --green:     #34d399;
+  --green-lt:  #064e3b;
+  --red:       #f87171;
+  --red-lt:    #450a0a;
+  --yellow:    #fbbf24;
+  --yellow-lt: #451a03;
+  --purple:    #a78bfa;
+  --purple-lt: #2e1065;
+  --orange:    #fb923c;
+  --orange-lt: #431407;
+  --text:      #e5e7eb;
+  --text-md:   #d1d5db;
+  --muted:     #9ca3af;
+  --muted-lt:  #6b7280;
+  --shadow:    0 4px 24px rgba(0,0,0,.35);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.25);
+}
 
-    <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon">
-    <link rel="manifest" href="{% static 'manifest.json' %}">
-    <meta name="theme-color" content="#4CAF50">
+/* ── Theme Toggle Button ── */
+.theme-toggle {
+  width: 36px; height: 36px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 1rem;
+  flex-shrink: 0;
+  transition: background .2s, border-color .2s, transform .15s;
+  color: var(--text);
+}
+.theme-toggle:hover {
+  background: var(--accent-lt);
+  border-color: var(--accent);
+  transform: rotate(20deg);
+}
 
-    <!-- Styles -->
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(to right, #11181ed4, #4354a0a8, #6d17c981);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
 
-        h1 {
-            color: #fff;
-            margin-bottom: 50px;
-            text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.3);
-            text-align: center;
-            padding: 0 20px;
-        }
+    /* ── Sticky Topbar ── */
+    .topbar {
+      background: var(--white);
+      border-bottom: 1.5px solid var(--border);
+      padding: 12px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+    .brand-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      box-shadow: 0 4px 12px rgba(99,102,241,.35);
+      flex-shrink: 0;
+    }
+    .brand-text .bname {
+      font-size: .88rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.1;
+    }
+    .brand-text .btag {
+      font-size: .65rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .user-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 24px;
+      padding: 4px 10px 4px 5px;
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--text-md);
+    }
+    .user-avatar {
+      width: 22px; height: 22px;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .65rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .logout-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: var(--red-lt);
+      border: 1.5px solid #fca5a5;
+      border-radius: 10px;
+      padding: 4px 10px;
+      font-size: .72rem;
+      font-weight: 600;
+      color: var(--red);
+      text-decoration: none;
+      transition: background .15s;
+    }
+    .logout-link:hover { background: #fecaca; }
 
-        .btn {
-            display: block;
-            width: 250px;
-            padding: 15px 0;
-            margin: 20px 0;
-            text-align: center;
-            text-decoration: none;
-            font-size: 20px;
-            font-weight: bold;
-            color: #fff;
-            background: #a82d38eb;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-        }
+    /* ── Page ── */
+    .page {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 16px 12px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
 
-        .btn:hover {
-            background: #030553;
-            transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-        }
-    </style>
+    /* ── Hero banner card ── */
+    .hero-card {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%);
+      border-radius: var(--radius);
+      padding: 22px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 8px 32px rgba(99,102,241,.35);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-card::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 160px; height: 160px;
+      background: rgba(255,255,255,.08);
+      border-radius: 50%;
+    }
+    .hero-card::after {
+      content: '';
+      position: absolute;
+      bottom: -50px; right: 40px;
+      width: 100px; height: 100px;
+      background: rgba(255,255,255,.06);
+      border-radius: 50%;
+    }
+    .hero-emoji {
+      font-size: 2.5rem;
+      flex-shrink: 0;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,.2));
+      z-index: 1;
+    }
+    .hero-text { z-index: 1; }
+    .hero-text h1 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.2;
+      margin-bottom: 4px;
+      letter-spacing: -.3px;
+    }
+    .hero-text p {
+      font-size: .76rem;
+      color: rgba(255,255,255,.75);
+      font-weight: 400;
+      line-height: 1.5;
+    }
+
+    /* ── Stat grid ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .stat-box {
+      background: var(--white);
+      border-radius: 14px;
+      padding: 14px 10px;
+      box-shadow: var(--shadow-sm);
+      text-align: center;
+    }
+    .stat-box .s-label {
+      font-size: .62rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .stat-box .s-value {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .s-value.accent { color: var(--accent); }
+    .s-value.green  { color: var(--green); }
+    .s-value.amber  { color: var(--yellow); }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: .68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: var(--muted);
+      padding: 2px 0;
+    }
+
+    /* ── Ongoing Trips — Add Expense Quick Panel ── */
+    .ongoing-panel {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .ongoing-panel-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 18px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .ongoing-panel-icon {
+      width: 36px; height: 36px;
+      background: var(--orange-lt);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .ongoing-panel-title { font-size: .92rem; font-weight: 700; color: var(--text); }
+    .ongoing-panel-sub   { font-size: .7rem; color: var(--muted); margin-top: 1px; }
+
+    .ongoing-trip-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .ongoing-trip-item:last-child { border-bottom: none; }
+
+    .ongoing-trip-info { flex: 1; min-width: 0; }
+    .ongoing-trip-name {
+      font-size: .88rem;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ongoing-trip-dates {
+      font-size: .68rem;
+      color: var(--muted);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .trip-date-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: var(--yellow-lt);
+      color: #92400e;
+      font-size: .62rem;
+      font-weight: 700;
+      border-radius: 6px;
+      padding: 2px 6px;
+    }
+
+    .add-exp-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, var(--green), #059669);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 9px 14px;
+      font-size: .78rem;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+      box-shadow: 0 3px 10px rgba(16,185,129,.3);
+      transition: opacity .15s, transform .15s;
+    }
+    .add-exp-btn:hover { opacity: .88; transform: translateY(-1px); }
+    .add-exp-btn i { font-size: .95rem; }
+
+    /* ── Main action card (primary CTA) ── */
+    .cta-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-decoration: none;
+      color: var(--text);
+      border: 2px solid transparent;
+      transition: border-color .2s, box-shadow .2s, transform .15s;
+    }
+    .cta-card:hover {
+      border-color: var(--accent-md);
+      box-shadow: 0 8px 32px rgba(99,102,241,.14);
+      transform: translateY(-2px);
+    }
+    .cta-card.featured {
+      background: linear-gradient(135deg, var(--accent-lt) 0%, #f0edff 100%);
+      border: 2px solid var(--accent-md);
+    }
+    .cta-card.featured:hover { box-shadow: 0 10px 36px rgba(99,102,241,.22); }
+    .cta-icon {
+      width: 48px; height: 48px;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.45rem;
+      flex-shrink: 0;
+    }
+    .cta-icon.indigo  { background: var(--accent-lt); }
+    .cta-icon.green   { background: var(--green-lt); }
+    .cta-icon.yellow  { background: var(--yellow-lt); }
+    .cta-icon.purple  { background: var(--purple-lt); }
+    .cta-icon.surface { background: var(--surface); border: 1.5px solid var(--border); }
+
+    .cta-text { flex: 1; min-width: 0; }
+    .cta-title { font-size: .93rem; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .cta-sub   { font-size: .72rem; color: var(--muted); font-weight: 400; }
+    .cta-arrow {
+      color: var(--accent-md);
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      transition: transform .15s, color .15s;
+    }
+    .cta-card:hover .cta-arrow { transform: translateX(3px); color: var(--accent); }
+
+    /* ── Quick actions grid ── */
+    .quick-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    @media (min-width: 400px) { .quick-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (min-width: 540px) { .quick-grid { grid-template-columns: repeat(4, 1fr); } }
+
+    .quick-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 14px 8px;
+      background: var(--white);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      text-decoration: none;
+      color: var(--text-md);
+      font-size: .72rem;
+      font-weight: 600;
+      transition: all .15s;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+    }
+    .quick-btn i { font-size: 1.25rem; color: var(--accent); }
+    .quick-btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-lt);
+      color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    /* ── White card shell ── */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .card-icon {
+      width: 34px; height: 34px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .card-title { font-size: .9rem; font-weight: 700; color: var(--text); }
+    .card-sub   { font-size: .7rem; color: var(--muted); margin-top: 1px; }
+
+    /* ── Recent trips rows ── */
+    .trip-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--border);
+      text-decoration: none;
+      color: var(--text);
+    }
+    .trip-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .trip-row:first-child { padding-top: 0; }
+    .trip-row-icon {
+      width: 38px; height: 38px;
+      border-radius: 11px;
+      background: var(--accent-lt);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .trip-row-info { flex: 1; min-width: 0; }
+    .trip-row-name {
+      font-size: .84rem;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .trip-row-meta { font-size: .69rem; color: var(--muted); margin-top: 2px; }
+    .trip-status {
+      font-size: .65rem;
+      font-weight: 700;
+      border-radius: 20px;
+      padding: 3px 9px;
+      flex-shrink: 0;
+    }
+    .status-ongoing   { background: var(--yellow-lt); color: #92400e; }
+    .status-completed { background: var(--green-lt);  color: #065f46; }
+
+    /* ── Feature highlights ── */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .feature-item {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      border: 1.5px solid var(--border);
+    }
+    .feature-emoji { font-size: 1.2rem; flex-shrink: 0; }
+    .feature-txt .ft { font-size: .78rem; font-weight: 700; color: var(--text-md); }
+    .feature-txt .fs { font-size: .67rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      font-size: .7rem;
+      color: var(--muted-lt);
+      padding: 6px 0;
+    }
+    .footer span { color: var(--accent); font-weight: 600; }
+
+    /* ── Mobile tweaks ── */
+    @media (max-width: 380px) {
+      .topbar { padding: 10px 12px; }
+      .brand-text .bname { font-size: .82rem; }
+      .brand-text .btag  { display: none; }
+      .user-chip .username { display: none; }
+      .hero-card { padding: 18px 14px; gap: 12px; }
+      .hero-emoji { font-size: 2rem; }
+      .hero-text h1 { font-size: 1.05rem; }
+      .page { padding: 12px 10px 80px; gap: 12px; }
+      .ongoing-trip-item { flex-wrap: wrap; gap: 8px; }
+      .add-exp-btn { width: 100%; justify-content: center; }
+    }
+    /* ── Weather Widget ── */
+.weather-card {
+  background: linear-gradient(135deg, #1a2a4a 0%, #0f3460 60%, #16213e 100%);
+  border-radius: 18px;
+  padding: 18px 20px 12px;
+  margin-bottom: 16px;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.weather-card {
+  background: linear-gradient(135deg, #1a2a4a 0%, #0f3460 60%, #16213e 100%);
+  border-radius: 18px;
+  padding: 18px 20px 14px;
+  margin-bottom: 16px;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.weather-greeting-row {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 14px;
+}
+.weather-icon { font-size: 2.8rem; line-height: 1; flex-shrink: 0; }
+.weather-greeting { font-size: .88rem; font-weight: 600; color: rgba(255,255,255,.55); }
+.weather-username { font-size: 1.3rem; font-weight: 800; color: #fff; margin-top: 2px; line-height: 1.2; }
+.weather-details-row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 12px; margin-bottom: 12px;
+}
+.weather-left { display: flex; flex-direction: column; gap: 2px; }
+.weather-temp { font-size: 1.9rem; font-weight: 800; line-height: 1; }
+.weather-desc { font-size: .85rem; color: rgba(255,255,255,.7); text-transform: capitalize; margin-top: 2px; }
+.weather-loc  { font-size: .73rem; color: rgba(255,255,255,.45); margin-top: 4px; }
+.weather-right {
+  display: flex; flex-direction: column; gap: 6px;
+  background: rgba(255,255,255,.08); border-radius: 12px;
+  padding: 10px 14px; min-width: 130px;
+}
+.weather-detail { display: flex; justify-content: space-between; gap: 12px; font-size: .82rem; }
+.weather-detail span:first-child { color: rgba(255,255,255,.55); }
+.weather-detail span:last-child  { font-weight: 600; }
+.weather-forecast {
+  display: flex; gap: 8px; padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,.1);
+  overflow-x: auto;
+}
+.wf-day {
+  flex: 1; min-width: 70px; background: rgba(255,255,255,.07);
+  border-radius: 10px; padding: 8px 6px; text-align: center; font-size: .78rem;
+}
+.wf-day .wf-label { color: rgba(255,255,255,.5); margin-bottom: 4px; }
+.wf-day .wf-ico   { font-size: 1.3rem; margin: 2px 0; }
+.wf-day .wf-hi    { font-weight: 700; }
+.wf-day .wf-lo    { color: rgba(255,255,255,.45); font-size: .74rem; }
+.weather-fetching {
+  font-size: .73rem; color: rgba(255,255,255,.35); margin-top: 4px;
+}
+@media (max-width: 480px) {
+  .weather-details-row { flex-direction: column; }
+  .weather-right { width: 100%; flex-direction: row; flex-wrap: wrap; min-width: unset; }
+}
+.weather-left {
+  display: flex; align-items: center; gap: 14px;
+}
+.weather-icon { font-size: 3rem; line-height: 1; }
+.weather-greeting { font-size: 1rem; font-weight: 700; color: rgba(255,255,255,.55); margin-bottom: 1px; }
+.weather-username { font-size: 1.25rem; font-weight: 800; color: #fff; margin-bottom: 8px; line-height: 1.2; }
+.weather-temp { font-size: 2rem; font-weight: 800; line-height: 1; }
+.weather-desc { font-size: .88rem; color: rgba(255,255,255,.75); text-transform: capitalize; margin-top: 2px; }
+.weather-loc  { font-size: .76rem; color: rgba(255,255,255,.5); margin-top: 4px; }
+.weather-right {
+  display: flex; flex-direction: column; gap: 6px;
+  background: rgba(255,255,255,.08);
+  border-radius: 12px;
+  padding: 10px 14px;
+  min-width: 130px;
+}
+.weather-detail {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-size: .82rem;
+}
+.weather-detail span:first-child { color: rgba(255,255,255,.6); }
+.weather-detail span:last-child  { font-weight: 600; }
+.weather-forecast {
+  display: flex; gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,.1);
+  overflow-x: auto;
+}
+.wf-day {
+  flex: 1; min-width: 70px;
+  background: rgba(255,255,255,.07);
+  border-radius: 10px;
+  padding: 8px 6px;
+  text-align: center;
+  font-size: .78rem;
+}
+.wf-day .wf-label { color: rgba(255,255,255,.55); margin-bottom: 4px; }
+.wf-day .wf-ico   { font-size: 1.3rem; margin: 2px 0; }
+.wf-day .wf-hi    { font-weight: 700; }
+.wf-day .wf-lo    { color: rgba(255,255,255,.5); font-size: .74rem; }
+@media (max-width: 480px) {
+  .weather-main { flex-direction: column; align-items: flex-start; }
+  .weather-right { width: 100%; flex-direction: row; flex-wrap: wrap; min-width: unset; }
+}
+  </style>
 </head>
-
 <body>
-    <h1>Welcome to Trip Budget and Expenses Monitoring System</h1>
-    <a href="{% url 'make_trip' %}" class="btn">Make a New Trip</a>
-    <a href="{% url 'trip_history' %}" class="btn">Trip History</a>
-    <a href="{% url 'trip_list' %}" class="btn">Trip List</a>
 
-    <!-- Install prompt button 
-    <button id="installBtn" style="display:none; padding:10px 20px; font-size:16px; margin-top:20px;">
-        Install App
-    </button>-->
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="brand-icon">✈️</div>
+    <div class="brand-text">
+      <div class="bname">Trip Budget Monitor</div>
+      <div class="btag">Smart travel spending tracker</div>
+    </div>
+  </div>
+<div class="topbar-right">
+  <!-- Theme toggle -->
+  <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle dark/light mode">
+    <i class="ti ti-moon" id="themeIcon"></i>
+  </button>
 
-    <!--<footer style="
-        position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        text-align: center;
-        width: 100%;
-        padding: 10px 0;
-        background-color: #f2f2f2;
-    ">
-        Designed by <span style="color: #ff4500; font-weight: bold;">VAMSEE TANDRA</span>
-    </footer> -->
+  {% if request.user.is_authenticated %}
+  <div class="user-chip">
+    <div class="user-avatar">{{ request.user.username|first|upper }}</div>
+    <span class="username">{{ request.user.username }}</span>
+  </div>
+  <a href="{% url 'logout' %}" class="logout-link">
+    <i class="ti ti-logout" style="font-size:.82rem;"></i> Out
+  </a>
+  {% endif %}
+</div>
+</div>
 
-    <!-- Service Worker & Install -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function () {
-                navigator.serviceWorker.register("{% static 'service-worker.js' %}")
-                    .then(function (registration) {
-                        console.log("Service Worker Registered");
-                    })
-                    .catch(function (error) {
-                        console.log("Service Worker Failed:", error);
-                    });
-            });
-        }
+<div class="page">
 
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            document.getElementById('installBtn').style.display = 'block';
-        });
+<!-- Weather Widget (replaces hero banner) -->
+<!-- Hero + Weather Widget -->
+<div class="weather-card" id="weather-card">
 
-        document.getElementById('installBtn').addEventListener('click', async () => {
-            document.getElementById('installBtn').style.display = 'none';
-            deferredPrompt.prompt();
-            const choiceResult = await deferredPrompt.userChoice;
-            console.log('User response:', choiceResult.outcome);
-            deferredPrompt = null;
-        });
-    </script>
+  <!-- Greeting — shows instantly, always visible -->
+  <div class="weather-greeting-row">
+    <div class="weather-icon" id="w-icon">🌤️</div>
+    <div>
+      <div class="weather-greeting" id="w-greeting">Good Morning ☀️</div>
+      <div class="weather-username">{% if request.user.is_authenticated %}{{ request.user.username }}{% endif %} !</div>
+    </div>
+  </div>
+
+  <!-- Weather details — hidden until fetched -->
+  <div class="weather-details-row" id="weather-details-row" style="display:none;">
+    <div class="weather-left">
+      <div class="weather-temp" id="w-temp">--°C</div>
+      <div class="weather-desc" id="w-desc">--</div>
+      <div class="weather-loc" id="w-loc">📍 Detecting location…</div>
+    </div>
+    <div class="weather-right">
+      <div class="weather-detail"><span>💧 Rain</span><span id="w-rain">--%</span></div>
+      <div class="weather-detail"><span>💨 Wind</span><span id="w-wind">-- km/h</span></div>
+      <div class="weather-detail"><span>🌡️ Feels</span><span id="w-feels">--°C</span></div>
+    </div>
+  </div>
+
+  <!-- Forecast — hidden until fetched -->
+  <div class="weather-forecast" id="weather-forecast" style="display:none;"></div>
+
+  <!-- Small fetching indicator -->
+  <div class="weather-fetching" id="weather-fetching">⏳ Fetching weather…</div>
+
+</div>
+
+  <!-- Stats strip -->
+  {% if stats %}
+  <div class="stat-grid">
+    <div class="stat-box">
+      <div class="s-label">Total Trips</div>
+      <div class="s-value accent">{{ stats.total_trips }}</div>
+    </div>
+    <div class="stat-box">
+      <div class="s-label">Ongoing</div>
+      <div class="s-value green">{{ stats.ongoing }}</div>
+    </div>
+    <div class="stat-box">
+      <div class="s-label">Completed</div>
+      <div class="s-value amber">{{ stats.completed }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Quick Add Expense for Ongoing Trips ── -->
+  {% if ongoing_trips %}
+  <div class="section-label">⚡ Add Expense — Ongoing Trips</div>
+  <div class="ongoing-panel">
+    <div class="ongoing-panel-header">
+      <div class="ongoing-panel-icon">🧾</div>
+      <div>
+        <div class="ongoing-panel-title">Ongoing Trips</div>
+        <div class="ongoing-panel-sub">Tap to log an expense for today</div>
+      </div>
+    </div>
+    {% for trip in ongoing_trips %}
+    <div class="ongoing-trip-item">
+      <div class="ongoing-trip-info">
+        <div class="ongoing-trip-name">{{ trip.name }}</div>
+        <div class="ongoing-trip-dates">
+          <span>{{ trip.destination }}</span>
+          <span class="trip-date-badge">
+            <i class="ti ti-calendar" style="font-size:.65rem;"></i>
+            {{ trip.start_date }} → {{ trip.end_date }}
+          </span>
+        </div>
+      </div>
+      <a href="{% url 'add_expense' trip.id %}" class="add-exp-btn">
+        <i class="ti ti-plus"></i> Add Expense
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Primary CTA -->
+  <div class="section-label">Get Started</div>
+  <a href="{% url 'make_trip' %}" class="cta-card featured">
+    <div class="cta-icon indigo">🗺️</div>
+    <div class="cta-text">
+      <div class="cta-title">Plan a New Trip</div>
+      <div class="cta-sub">Set destination, dates &amp; budget in seconds</div>
+    </div>
+    <i class="ti ti-arrow-right cta-arrow"></i>
+  </a>
+
+  <!-- Manage section -->
+  <div class="section-label">Manage</div>
+  <a href="{% url 'trip_history' %}" class="cta-card">
+    <div class="cta-icon yellow">📋</div>
+    <div class="cta-text">
+      <div class="cta-title">Trip History</div>
+      <div class="cta-sub">All your ongoing &amp; past trips</div>
+    </div>
+    <i class="ti ti-arrow-right cta-arrow"></i>
+  </a>
+  <a href="{% url 'trip_list' %}" class="cta-card">
+    <div class="cta-icon green">✅</div>
+    <div class="cta-text">
+      <div class="cta-title">Completed Trips</div>
+      <div class="cta-sub">Browse your finished adventures</div>
+    </div>
+    <i class="ti ti-arrow-right cta-arrow"></i>
+  </a>
+
+  <!-- Quick actions grid -->
+  <div class="section-label">Quick Actions</div>
+  <div class="quick-grid">
+    <a href="{% url 'make_trip' %}" class="quick-btn">
+      <i class="ti ti-plus"></i> New Trip
+    </a>
+    <a href="{% url 'trip_history' %}" class="quick-btn">
+      <i class="ti ti-history"></i> History
+    </a>
+    <a href="{% url 'trip_list' %}" class="quick-btn">
+      <i class="ti ti-list-check"></i> Completed
+    </a>
+    {% if ongoing_trip %}
+    <a href="{% url 'add_expense' ongoing_trip.id %}" class="quick-btn" style="border-color:var(--green);background:var(--green-lt);">
+      <i class="ti ti-receipt" style="color:var(--green);"></i>
+      <span style="color:#065f46;">Add Expense</span>
+    </a>
+    {% endif %}
+  </div>
+
+  <!-- Recent trips card -->
+  {% if recent_trips %}
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:var(--accent-lt);">🧳</div>
+      <div>
+        <div class="card-title">Recent Trips</div>
+        <div class="card-sub">Jump back in</div>
+      </div>
+    </div>
+    {% for trip in recent_trips %}
+    <a href="{% url 'trip_dashboard' trip.id %}" class="trip-row">
+      <div class="trip-row-icon">
+        {% if trip.status == 'Ongoing' %}🛫{% else %}📍{% endif %}
+      </div>
+      <div class="trip-row-info">
+        <div class="trip-row-name">{{ trip.name }}</div>
+        <div class="trip-row-meta">{{ trip.destination }} · {{ trip.start_date }}</div>
+      </div>
+      <span class="trip-status {% if trip.status == 'Ongoing' %}status-ongoing{% else %}status-completed{% endif %}">
+        {{ trip.status }}
+      </span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Feature highlights -->
+  <div class="section-label">What you can do</div>
+  <div class="feature-grid">
+    <div class="feature-item">
+      <span class="feature-emoji">📊</span>
+      <div class="feature-txt">
+        <div class="ft">Live Budgets</div>
+        <div class="fs">Real-time spend tracking</div>
+      </div>
+    </div>
+    <div class="feature-item">
+      <span class="feature-emoji">🧾</span>
+      <div class="feature-txt">
+        <div class="ft">Receipt Scan</div>
+        <div class="fs">OCR auto-fill expenses</div>
+      </div>
+    </div>
+    <div class="feature-item">
+      <span class="feature-emoji">👥</span>
+      <div class="feature-txt">
+        <div class="ft">Group Splits</div>
+        <div class="fs">Fair bill splitting</div>
+      </div>
+    </div>
+    <div class="feature-item">
+      <span class="feature-emoji">📍</span>
+      <div class="feature-txt">
+        <div class="ft">Spend Heatmaps</div>
+        <div class="fs">Visual analytics</div>
+      </div>
+    </div>
+    <div class="feature-item">
+      <span class="feature-emoji">🔁</span>
+      <div class="feature-txt">
+        <div class="ft">Recurring</div>
+        <div class="fs">Daily / weekly / monthly</div>
+      </div>
+    </div>
+    <div class="feature-item">
+      <span class="feature-emoji">📄</span>
+      <div class="feature-txt">
+        <div class="ft">PDF Export</div>
+        <div class="fs">Download full report</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Theme: dark is default ──
+  const html = document.documentElement;
+  const icon = document.getElementById('themeIcon');
+  const btn  = document.getElementById('themeToggle');
+
+  // Load saved preference; fall back to 'light'
+  const saved = localStorage.getItem('theme') || 'light';
+  html.setAttribute('data-theme', saved);
+  icon.className = saved === 'dark' ? 'ti ti-sun' : 'ti ti-moon';
+
+  btn.addEventListener('click', () => {
+    const current = html.getAttribute('data-theme');
+    const next    = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    icon.className = next === 'dark' ? 'ti ti-sun' : 'ti ti-moon';
+  });
+
+  // ── Service Worker ──
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register("{% static 'service-worker.js' %}")
+        .catch(e => console.log('SW failed:', e));
+    });
+  }
+</script>
+<script>
+// ── Greeting — runs instantly, no network needed ────────────────────────────
+(function() {
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good Morning ☀️'
+                 : hour < 17 ? 'Good Afternoon 🌤️'
+                 : hour < 21 ? 'Good Evening 🌇'
+                 :              'Good Night 🌙';
+  document.getElementById('w-greeting').textContent = greeting;
+})();
+
+// ── Weather — fetches in background ────────────────────────────────────────
+const WMO_ICONS = {
+  0:'☀️',1:'🌤️',2:'⛅',3:'☁️',45:'🌫️',48:'🌫️',
+  51:'🌦️',53:'🌧️',55:'🌧️',61:'🌧️',63:'🌧️',65:'🌧️',
+  71:'❄️',73:'❄️',75:'❄️',80:'🌦️',81:'🌦️',82:'⛈️',
+  95:'⛈️',96:'⛈️',99:'⛈️',
+};
+const WMO_DESC = {
+  0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',
+  45:'Foggy',48:'Icy fog',51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',
+  61:'Slight rain',63:'Moderate rain',65:'Heavy rain',
+  71:'Slight snow',73:'Moderate snow',75:'Heavy snow',
+  80:'Rain showers',81:'Moderate showers',82:'Violent showers',
+  95:'Thunderstorm',96:'Thunderstorm + hail',99:'Heavy thunderstorm',
+};
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function initWeather() {
+  if (!navigator.geolocation) { hideFetching(); return; }
+  navigator.geolocation.getCurrentPosition(
+    pos => fetchWeather(pos.coords.latitude, pos.coords.longitude),
+    ()  => fetchWeather(13.0827, 80.2707) // fallback: Chennai
+  );
+}
+
+async function fetchWeather(lat, lon) {
+  try {
+    let cityName = '';
+    try {
+      const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+      const gd  = await geo.json();
+      cityName  = gd.address?.city || gd.address?.town || gd.address?.village || gd.address?.state || '';
+    } catch(e) {}
+
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`
+      + `&current=temperature_2m,apparent_temperature,precipitation_probability,weathercode,windspeed_10m`
+      + `&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max`
+      + `&timezone=auto&forecast_days=4`;
+    const res  = await fetch(url);
+    const data = await res.json();
+    const cur  = data.current;
+    const dai  = data.daily;
+
+    // Update icon in greeting row
+    document.getElementById('w-icon').textContent  = WMO_ICONS[cur.weathercode] || '🌡️';
+
+    // Fill weather details
+    document.getElementById('w-temp').textContent  = Math.round(cur.temperature_2m) + '°C';
+    document.getElementById('w-desc').textContent  = WMO_DESC[cur.weathercode] || '';
+    document.getElementById('w-loc').textContent   = cityName ? '📍 ' + cityName : '📍 Your location';
+    document.getElementById('w-feels').textContent = Math.round(cur.apparent_temperature) + '°C';
+    document.getElementById('w-rain').textContent  = (cur.precipitation_probability ?? 0) + '%';
+    document.getElementById('w-wind').textContent  = Math.round(cur.windspeed_10m) + ' km/h';
+
+    // Build 3-day forecast (skip today = index 0)
+    const fc = document.getElementById('weather-forecast');
+    fc.innerHTML = '';
+    for (let i = 1; i <= 3; i++) {
+      const d   = new Date(dai.time[i] + 'T00:00:00');
+      const div = document.createElement('div');
+      div.className = 'wf-day';
+      div.innerHTML = `
+        <div class="wf-label">${DAYS[d.getDay()]}</div>
+        <div class="wf-ico">${WMO_ICONS[dai.weathercode[i]] || '🌡️'}</div>
+        <div class="wf-hi">${Math.round(dai.temperature_2m_max[i])}°</div>
+        <div class="wf-lo">${Math.round(dai.temperature_2m_min[i])}°</div>
+        <div style="font-size:.7rem;color:rgba(255,255,255,.4);margin-top:2px;">💧${dai.precipitation_probability_max[i]}%</div>
+      `;
+      fc.appendChild(div);
+    }
+
+    // Show weather details and forecast, hide fetching text
+    document.getElementById('weather-details-row').style.display = 'flex';
+    document.getElementById('weather-forecast').style.display    = 'flex';
+    hideFetching();
+
+  } catch(e) {
+    hideFetching();
+  }
+}
+
+function hideFetching() {
+  const el = document.getElementById('weather-fetching');
+  if (el) el.style.display = 'none';
+}
+
+initWeather();
+</script>
 </body>
-
 </html>

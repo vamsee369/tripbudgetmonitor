@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 15mm;
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font-size: 9pt; color: #aaa;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 11pt; color: #222; }
+
+  /* Header */
+  .header { background: #4f46e5; color: #fff; padding: 20px 24px; border-radius: 10px; margin-bottom: 20px; }
+  .header h1 { font-size: 20pt; font-weight: 700; }
+  .header p  { font-size: 10pt; opacity: 0.85; margin-top: 4px; }
+
+  /* Summary grid */
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  .stat { background: #f5f3ff; border-radius: 8px; padding: 12px; border-left: 4px solid #6366f1; }
+  .stat .lbl { font-size: 8pt; color: #6b7280; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat .val { font-size: 14pt; font-weight: 700; color: #1f2937; margin-top: 4px; }
+  .stat .val.red { color: #dc2626; }
+  .stat .val.grn { color: #16a34a; }
+
+  /* Category breakdown */
+  .section-title {
+    font-size: 11pt; font-weight: 700; color: #4f46e5;
+    border-bottom: 2px solid #e0e7ff; padding-bottom: 5px; margin-bottom: 12px;
+  }
+  .cat-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 9.5pt; }
+  .cat-table th { background: #4f46e5; color: #fff; padding: 7px 10px; text-align: left; font-weight: 600; }
+  .cat-table td { padding: 6px 10px; border-bottom: 1px solid #f3f4f6; }
+  .cat-table tr:nth-child(even) td { background: #f9f9ff; }
+  .cat-bar-wrap { background: #e5e7eb; border-radius: 4px; height: 7px; }
+  .cat-bar-fill { background: #6366f1; border-radius: 4px; height: 7px; }
+
+  /* Participants */
+  .participants { margin-bottom: 20px; }
+  .pill-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .pill {
+    background: #ede9fe; color: #5b21b6; border-radius: 20px;
+    padding: 4px 12px; font-size: 9pt; font-weight: 600;
+  }
+
+  /* Expense table */
+  .exp-table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-bottom: 20px; }
+  .exp-table th {
+    background: #1f2937; color: #fff; padding: 8px 10px;
+    text-align: left; font-weight: 600;
+  }
+  .exp-table td { padding: 7px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+  .exp-table tr:nth-child(even) td { background: #fafafa; }
+  .exp-table .amount { font-weight: 700; color: #4f46e5; }
+  .cat-badge {
+    display: inline-block; padding: 2px 7px; border-radius: 10px;
+    font-size: 8pt; font-weight: 600; background: #e0e7ff; color: #3730a3;
+  }
+  .rec-badge { background: #fef9c3; color: #854d0e; }
+
+  /* Footer */
+  .footer { text-align: center; font-size: 8.5pt; color: #aaa; margin-top: 10px; border-top: 1px solid #f3f4f6; padding-top: 10px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>{{ trip.name }}</h1>
+  <p>{{ trip.destination }} &nbsp;·&nbsp; {{ trip.start_date }} → {{ trip.end_date }} &nbsp;·&nbsp; Exported on {% now "d M Y" %}</p>
+</div>
+
+<!-- Summary Stats -->
+<div class="summary">
+  <div class="stat">
+    <div class="lbl">Total Spent</div>
+    <div class="val">₹{{ total_expenses|floatformat:2 }}</div>
+  </div>
+  <div class="stat">
+    <div class="lbl">Budget</div>
+    <div class="val">₹{{ trip.budget|floatformat:2 }}</div>
+  </div>
+  <div class="stat">
+    <div class="lbl">Remaining</div>
+    {% if remaining_budget is not None %}
+      <div class="val {% if remaining_budget < 0 %}red{% else %}grn{% endif %}">
+        ₹{{ remaining_budget|floatformat:2 }}
+      </div>
+    {% else %}
+      <div class="val" style="color:#9ca3af">—</div>
+    {% endif %}
+  </div>
+  <div class="stat">
+    <div class="lbl">Cost / Person</div>
+    <div class="val">{% if cost_per_person %}₹{{ cost_per_person|floatformat:2 }}{% else %}—{% endif %}</div>
+  </div>
+</div>
+
+<!-- Participants -->
+{% if participants %}
+<div class="participants">
+  <div class="section-title">Participants</div>
+  <div class="pill-row">
+    {% for p in participants %}<span class="pill">{{ p }}</span>{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Category Breakdown -->
+{% if cat_totals %}
+<div class="section-title">Spending by Category</div>
+<table class="cat-table">
+  <thead><tr><th>Category</th><th>Amount</th><th>Share</th><th style="width:140px">Bar</th></tr></thead>
+  <tbody>
+    {% for cat, amt in cat_totals.items %}
+    <tr>
+      <td>{{ cat }}</td>
+      <td>₹{{ amt|floatformat:2 }}</td>
+      <td>{% widthratio amt total 100 %}%</td>
+      <td>
+        <div class="cat-bar-wrap">
+          <div class="cat-bar-fill" style="width:{% widthratio amt total 100 %}%"></div>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<!-- Expense List -->
+<div class="section-title">All Expenses ({{ expenses|length }} items)</div>
+<table class="exp-table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Title</th>
+      <th>Category</th>
+      <th>Paid By</th>
+      <th>Mode</th>
+      <th>Date</th>
+      <th>Amount</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for exp in expenses %}
+    <tr>
+      <td style="color:#9ca3af">{{ forloop.counter }}</td>
+      <td>
+        {{ exp.title }}
+        {% if exp.is_recurring %}<br><span class="cat-badge rec-badge">🔁 {{ exp.get_recurrence_type_display }}</span>{% endif %}
+        {% if exp.merchant_name %}<br><span style="font-size:8pt;color:#6b7280">{{ exp.merchant_name }}</span>{% endif %}
+        {% if exp.description %}<br><span style="font-size:8pt;color:#9ca3af">{{ exp.description }}</span>{% endif %}
+      </td>
+      <td><span class="cat-badge">{{ exp.category }}</span></td>
+      <td>{{ exp.paid_by }}</td>
+      <td>{{ exp.payment_mode }}</td>
+      <td style="white-space:nowrap;color:#6b7280">{{ exp.created_at|date:"d M Y" }}</td>
+      <td class="amount">₹{{ exp.amount }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="footer">
+  Generated by Trip Budget Monitor &nbsp;·&nbsp; {{ trip.name }} &nbsp;·&nbsp; {{ expenses|length }} expenses &nbsp;·&nbsp; Total ₹{{ total_expenses|floatformat:2 }}
+</div>
+
+</body>
+</html>

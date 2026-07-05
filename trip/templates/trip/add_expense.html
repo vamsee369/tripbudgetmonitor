@@ -1,158 +1,517 @@
-{%load static%}
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Expense - {{ trip.name }}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(to right, #ffecd2, #fcb69f);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-        }
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Add Expense — {{ trip.name }}</title>
+  <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon"/>
+  <link rel="manifest" href="{% static 'manifest.json' %}"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .container {
-            background: #fff;
-            padding: 30px 40px;
-            border-radius: 15px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-            width: 400px;
-        }
+    :root {
+      --bg:        #f0f4f8;
+      --white:     #ffffff;
+      --surface:   #f8f9ff;
+      --border:    #e5e7eb;
+      --accent:    #6366f1;
+      --accent-lt: #eef2ff;
+      --accent-md: #c7d2fe;
+      --green:     #10b981;
+      --green-lt:  #d1fae5;
+      --red:       #ef4444;
+      --red-lt:    #fee2e2;
+      --yellow:    #f59e0b;
+      --yellow-lt: #fef3c7;
+      --purple:    #7c3aed;
+      --purple-lt: #ede9fe;
+      --orange:    #f97316;
+      --orange-lt: #ffedd5;
+      --sky:       #0ea5e9;
+      --sky-dk:    #0369a1;
+      --text:      #1f2937;
+      --text-md:   #374151;
+      --muted:     #6b7280;
+      --muted-lt:  #9ca3af;
+      --radius:    16px;
+      --radius-sm: 10px;
+      --shadow:    0 4px 24px rgba(0,0,0,.07);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.05);
+    }
 
-        h2 {
-            text-align: center;
-            color: #ff7e5f;
-            margin-bottom: 25px;
-        }
+    [data-theme="dark"] {
+      --bg:        #0f1117;
+      --white:     #1a1d27;
+      --surface:   #1e2130;
+      --border:    #2d3148;
+      --accent:    #818cf8;
+      --accent-lt: #1e2040;
+      --accent-md: #4338ca;
+      --green:     #34d399;
+      --green-lt:  #064e3b;
+      --red:       #f87171;
+      --red-lt:    #450a0a;
+      --yellow:    #fbbf24;
+      --yellow-lt: #451a03;
+      --purple:    #a78bfa;
+      --purple-lt: #2e1065;
+      --orange:    #fb923c;
+      --orange-lt: #431407;
+      --sky:       #38bdf8;
+      --sky-dk:    #0284c7;
+      --text:      #e5e7eb;
+      --text-md:   #d1d5db;
+      --muted:     #9ca3af;
+      --muted-lt:  #6b7280;
+      --shadow:    0 4px 24px rgba(0,0,0,.4);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.3);
+    }
 
-        input,
-        select,
-        textarea {
-            width: 100%;
-            padding: 12px 15px;
-            margin: 10px 0;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            font-size: 16px;
-        }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
 
-        textarea {
-            resize: vertical;
-        }
+    /* ── Topbar ── */
+    .topbar {
+      background: var(--white);
+      border-bottom: 1.5px solid var(--border);
+      padding: 14px 16px;
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .topbar-back { color: var(--accent); text-decoration: none; font-size: .88rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+    .topbar-back:hover { text-decoration: underline; }
+    .topbar-title { flex: 1; min-width: 0; }
+    .topbar-title h1 { font-size: 1rem; font-weight: 700; color: var(--text); }
+    .topbar-title p  { font-size: .73rem; color: var(--muted); }
 
-        .btn {
-            display: block;
-            width: 100%;
-            padding: 15px 0;
-            margin-top: 20px;
-            font-size: 18px;
-            font-weight: bold;
-            color: #fff;
-            background: #ff7e5f;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
+    /* ── Page ── */
+    .page { max-width: 640px; margin: 0 auto; padding: 20px 16px 60px; display: flex; flex-direction: column; gap: 16px; }
 
-        .btn:hover {
-            background: #feb47b;
-            transform: translateY(-3px);
-        }
+    /* ── Sections ── */
+    .section {
+      background: var(--white);
+      border-radius: var(--radius);
+      border: 1.5px solid var(--border);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .section-title {
+      font-size: .88rem; font-weight: 700; color: var(--accent);
+      margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+      padding-bottom: 10px; border-bottom: 1px solid var(--border);
+    }
 
-        .back-btn {
-            background: #ccc;
-            color: #333;
-            text-align: center;
-            margin-top: 15px;
-        }
+    /* ── Form elements ── */
+    .form-group { margin-bottom: 14px; }
+    .form-group:last-child { margin-bottom: 0; }
+    label { display: block; font-size: .82rem; font-weight: 600; color: var(--text-md); margin-bottom: 5px; }
+    input[type=text], input[type=number], input[type=date], select, textarea {
+      width: 100%; padding: 10px 14px;
+      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      font-size: .93rem; color: var(--text); background: var(--surface);
+      font-family: inherit; transition: border-color .2s, background .2s;
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      background: var(--white);
+      box-shadow: 0 0 0 3px rgba(99,102,241,.1);
+    }
+    select option { background: var(--white); color: var(--text); }
+    textarea { resize: vertical; min-height: 70px; }
+    #custom-category-group { display: none; }
 
-        .back-btn:hover {
-            background: #aaa;
-        }
+    /* ── Receipt upload section ── */
+    .receipt-section {
+      background: var(--accent-lt);
+      border: 2px dashed var(--accent-md);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+    .receipt-type-row { display: flex; gap: 8px; margin-bottom: 14px; }
+    .receipt-type-btn {
+      flex: 1; padding: 10px 6px;
+      border: 2px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--white); cursor: pointer; font-size: .82rem;
+      font-weight: 600; color: var(--muted); text-align: center;
+      transition: all .2s;
+    }
+    .receipt-type-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-lt); }
+    .receipt-type-btn.active { border-color: var(--accent); background: var(--accent-lt); color: var(--accent); }
 
-        .error {
-            color: red;
-            text-align: center;
-        }
+    .upload-area {
+      border: 2px dashed var(--accent-md); border-radius: var(--radius-sm);
+      padding: 24px; text-align: center; background: var(--white);
+      cursor: pointer; transition: background .2s; position: relative;
+    }
+    .upload-area:hover { background: var(--accent-lt); }
+    .upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .upload-icon { font-size: 2rem; margin-bottom: 8px; }
+    .upload-label { font-size: .88rem; color: var(--muted); }
+    .upload-label span { color: var(--accent); font-weight: 600; }
+    #preview-container { margin-top: 12px; display: none; text-align: center; }
+    #preview-img { max-width: 100%; max-height: 180px; border-radius: 8px; border: 1px solid var(--border); }
+    #preview-name { font-size: .8rem; color: var(--muted); margin-top: 6px; }
+    .remove-btn { display: inline-block; margin-top: 6px; font-size: .78rem; color: var(--red); cursor: pointer; text-decoration: underline; }
 
-        label {
-            font-weight: bold;
-            margin-top: 10px;
-            display: block;
-        }
-    </style>
-    <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon">
-    <link rel="manifest" href="{% static 'manifest.json' %}">
-    <meta name="theme-color" content="#000000">
+    /* ── OCR ── */
+    .ocr-btn {
+      display: none; margin-top: 14px; width: 100%; padding: 11px;
+      background: linear-gradient(135deg, var(--sky), var(--sky-dk));
+      color: #fff; border: none; border-radius: var(--radius-sm);
+      font-size: .9rem; font-weight: 700; cursor: pointer; transition: opacity .2s;
+      font-family: inherit;
+    }
+    .ocr-btn:hover { opacity: .88; }
+    .ocr-btn.loading { opacity: .6; cursor: wait; }
+    #ocr-status { font-size: .82rem; margin-top: 8px; text-align: center; color: var(--muted); min-height: 18px; }
+
+    .ocr-fields {
+      display: none;
+      background: var(--green-lt); border: 1.5px solid var(--green);
+      border-radius: var(--radius-sm); padding: 16px; margin-top: 14px;
+    }
+    .ocr-title { font-size: .82rem; font-weight: 700; color: var(--green); margin-bottom: 12px; }
+    .ocr-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .ocr-row .form-group { margin-bottom: 0; }
+    .ocr-merchant { margin-top: 10px; }
+    .btn-use-ocr {
+      margin-top: 10px; padding: 7px 14px;
+      background: var(--accent); color: #fff; border: none;
+      border-radius: 8px; font-size: .82rem; cursor: pointer;
+      font-family: inherit; font-weight: 600; transition: background .15s;
+    }
+    .btn-use-ocr:hover { background: #4f46e5; }
+
+    /* ── Recurring section ── */
+    .recurring-section {
+      background: var(--yellow-lt);
+      border: 2px solid var(--yellow);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+    .toggle-label { font-size: .93rem; font-weight: 600; color: var(--text); }
+    .toggle-switch { position: relative; width: 48px; height: 26px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: var(--border); border-radius: 26px; transition: .3s;
+    }
+    .toggle-slider::before {
+      content: ""; position: absolute;
+      height: 20px; width: 20px; left: 3px; bottom: 3px;
+      background: var(--white); border-radius: 50%; transition: .3s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background: var(--yellow); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); }
+    .recurrence-options { display: none; margin-top: 14px; }
+    .freq-row { display: flex; gap: 8px; }
+    .freq-btn {
+      flex: 1; padding: 10px 6px;
+      border: 2px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--white); cursor: pointer; font-size: .85rem;
+      font-weight: 600; color: var(--muted); text-align: center; transition: all .2s;
+    }
+    .freq-btn:hover { border-color: var(--yellow); color: var(--yellow); }
+    .freq-btn.active { border-color: var(--yellow); background: var(--yellow-lt); color: var(--yellow); }
+
+    /* ── Timestamp note ── */
+    .timestamp-note {
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); padding: 10px 14px;
+      font-size: .82rem; color: var(--muted);
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ── Submit ── */
+    .btn-submit {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, var(--accent), #4f46e5);
+      color: #fff; border: none; border-radius: var(--radius);
+      font-size: 1rem; font-weight: 700; cursor: pointer;
+      font-family: inherit; transition: opacity .2s, transform .15s;
+      box-shadow: 0 4px 16px rgba(99,102,241,.35);
+    }
+    .btn-submit:hover { opacity: .92; transform: translateY(-1px); }
+
+    /* ── Error ── */
+    .error-card {
+      background: var(--red-lt); color: var(--red);
+      border: 1.5px solid var(--red); border-radius: var(--radius-sm);
+      padding: 12px 16px; font-size: .9rem;
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 480px) {
+      .ocr-row { grid-template-columns: 1fr; }
+      .receipt-type-row { flex-direction: column; gap: 8px; }
+      .freq-row { flex-direction: column; gap: 8px; }
+    }
+  </style>
+  <script>
+  (function(){
+    var t = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+  </script>
 </head>
-
 <body>
-    <div class="container">
-        <h2>Add Expense - {{ trip.name }}</h2>
 
-        {% if error %}<p class="error">{{ error }}</p>{% endif %}
+<!-- Topbar -->
+<div class="topbar">
+  <a href="{% url 'trip_dashboard' trip.id %}" class="topbar-back">
+    <i class="ti ti-arrow-left"></i> Dashboard
+  </a>
+  <div class="topbar-title">
+    <h1>Add Expense</h1>
+    <p>{{ trip.name }} · {{ trip.destination }}</p>
+  </div>
+</div>
 
-        <form method="POST">
-            {% csrf_token %}
-            <input type="text" name="title" placeholder="Expense Title" required>
-            <input type="number" step="0.01" name="amount" placeholder="Amount" required>
+<div class="page">
 
-            <label for="paid_by">Paid By:</label>
-            <select name="paid_by" required>
-                <option value="">-- Select Participant --</option>
-                {% for p in participants %}
-                <option value="{{ p }}">{{ p }}</option>
-                {% endfor %}
-            </select>
+  {% if error %}
+  <div class="error-card">⚠️ {{ error }}</div>
+  {% endif %}
 
-            <label for="category">Category:</label>
-            <select name="category" required onchange="toggleCustomCategory(this.value)">
-                <option value="">-- Select Category --</option>
-                <option value="Accommodation">Accommodation</option>
-                <option value="Transport">Transport</option>
-                <option value="Food & Dining">Food & Dining</option>
-                <option value="Drinks">Drinks</option>
-                <option value="Activities & Entertainment">Activities & Entertainment</option>
-                <option value="Shopping & Souvenirs">Shopping & Souvenirs</option>
-                <option value="Emergency / Medical">Emergency / Medical</option>
-                <option value="Tips & Service Charges">Tips & Service Charges</option>
-                <option value="Other">Other</option>
-            </select>
+  <form method="POST" enctype="multipart/form-data" id="expense-form">
+    {% csrf_token %}
 
-            <input type="text" name="custom_category" id="custom_category" placeholder="Custom Category"
-                style="display:none;">
+    <!-- Basic details -->
+    <div class="section">
+      <div class="section-title"><i class="ti ti-receipt"></i> Expense Details</div>
 
-            <label for="payment_mode">Payment Mode:</label>
-            <select name="payment_mode" required>
-                <option value="">-- Select Payment Mode --</option>
-                <option value="UPI">UPI</option>
-                <option value="Cash">Cash</option>
-                <option value="Card">Card</option>
-            </select>
+      <div class="form-group">
+        <label>Expense Title *</label>
+        <input type="text" name="title" id="id_title" placeholder="e.g. Hotel Night 1" required/>
+      </div>
+      <div class="form-group">
+        <label>Amount (₹) *</label>
+        <input type="number" name="amount" id="id_amount" step="0.01" min="0" placeholder="0.00" required/>
+      </div>
+      <div class="form-group">
+        <label>Paid By *</label>
+        <select name="paid_by" required>
+          <option value="">— Select person —</option>
+          {% for p in participants %}
+            <option value="{{ p }}">{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Category *</label>
+        <select name="category" id="category-select" required onchange="toggleCustom(this)">
+          <option value="">— Select category —</option>
+          <option>Accommodation</option>
+          <option>Transport</option>
+          <option>Food &amp; Dining</option>
+          <option>Drinks</option>
+          <option>Activities &amp; Entertainment</option>
+          <option>Shopping &amp; Souvenirs</option>
+          <option>Emergency / Medical</option>
+          <option>Tips &amp; Service Charges</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group" id="custom-category-group">
+        <label>Custom Category</label>
+        <input type="text" name="custom_category" placeholder="Enter custom category"/>
+      </div>
+      <div class="form-group">
+        <label>Payment Mode *</label>
+        <select name="payment_mode" required>
+          <option value="">— Select mode —</option>
+          <option>UPI</option>
+          <option>Cash</option>
+          <option>Card</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <textarea name="description" rows="2" placeholder="Any notes…"></textarea>
+      </div>
 
-            <label for="description">Description:</label>
-            <textarea name="description" placeholder="Where and what was the expense" rows="3"></textarea>
-
-            <button type="submit" class="btn">Add Expense</button>
-        </form>
-
-        <a href="{% url 'trip_history' %}" class="btn back-btn">Back to Trip History</a>
+      <div class="timestamp-note">
+        <i class="ti ti-clock"></i>
+        Expense date &amp; time will be automatically recorded when you save.
+      </div>
     </div>
 
-    <script>
-        function toggleCustomCategory(value) {
-            const customInput = document.getElementById('custom_category');
-            if (value === 'Other') { customInput.style.display = 'block'; }
-            else { customInput.style.display = 'none'; customInput.value = ''; }
-        }
-    </script>
-</body>
+    <!-- Receipt upload -->
+    <div class="section">
+      <div class="section-title"><i class="ti ti-paperclip"></i> Attach Receipt</div>
 
+      <div class="receipt-section">
+        <div class="receipt-type-row">
+          <div class="receipt-type-btn" onclick="selectType(this,'bill')">🧾 Bill</div>
+          <div class="receipt-type-btn" onclick="selectType(this,'receipt')">📄 Receipt</div>
+          <div class="receipt-type-btn" onclick="selectType(this,'photo')">📷 Photo</div>
+        </div>
+        <input type="hidden" name="receipt_type" id="receipt_type_input" value=""/>
+
+        <div class="upload-area" id="upload-area">
+          <input type="file" name="receipt" id="receipt-file"
+                 accept="image/jpeg,image/png,image/webp,application/pdf"
+                 onchange="onFileSelected(this)"/>
+          <div class="upload-icon">📁</div>
+          <div class="upload-label"><span>Click to upload</span> or drag &amp; drop<br>JPG, PNG, WEBP, PDF</div>
+        </div>
+
+        <div id="preview-container">
+          <img id="preview-img" src="" alt="Receipt preview"/>
+          <div id="preview-name"></div>
+          <span class="remove-btn" onclick="removeFile()">✕ Remove</span>
+        </div>
+
+        <button type="button" class="ocr-btn" id="ocr-btn" onclick="runOCR()">
+          🔍 Auto-Extract Amount, GST &amp; Merchant
+        </button>
+        <div id="ocr-status"></div>
+
+        <div class="ocr-fields" id="ocr-fields">
+          <div class="ocr-title">✅ Extracted from receipt — review and edit if needed:</div>
+          <div class="ocr-row">
+            <div class="form-group">
+              <label>Extracted Amount (₹)</label>
+              <input type="number" name="_ocr_amount" id="ocr_amount" step="0.01" placeholder="Auto-filled"/>
+            </div>
+            <div class="form-group">
+              <label>GST Amount (₹)</label>
+              <input type="number" name="gst_amount" id="ocr_gst" step="0.01" placeholder="Auto-filled"/>
+            </div>
+          </div>
+          <div class="form-group ocr-merchant">
+            <label>Merchant / Shop Name</label>
+            <input type="text" name="merchant_name" id="ocr_merchant" placeholder="Auto-filled"/>
+          </div>
+          <small style="color:var(--muted);font-size:.78rem;">Clicking "Use Amount" will copy the extracted amount into the main Amount field.</small>
+          <br/>
+          <button type="button" class="btn-use-ocr" onclick="useOCRAmount()">← Use this Amount</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recurring -->
+    <div class="section">
+      <div class="section-title"><i class="ti ti-repeat"></i> Recurring Expense</div>
+
+      <div class="recurring-section">
+        <div class="toggle-row">
+          <span class="toggle-label">🔁 Mark as Recurring?</span>
+          <label class="toggle-switch">
+            <input type="checkbox" name="is_recurring" id="recurring-toggle" onchange="toggleRecurring(this)"/>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="recurrence-options" id="recurrence-options">
+          <label style="margin-top:12px;margin-bottom:8px;display:block;">How often?</label>
+          <div class="freq-row">
+            <div class="freq-btn" onclick="selectFreq(this,'daily')">📅 Daily</div>
+            <div class="freq-btn" onclick="selectFreq(this,'weekly')">🗓️ Weekly</div>
+            <div class="freq-btn" onclick="selectFreq(this,'monthly')">📆 Monthly</div>
+          </div>
+          <input type="hidden" name="recurrence_type" id="recurrence_type_input" value=""/>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-submit">💾 Save Expense</button>
+  </form>
+
+</div>
+
+<script>
+  function toggleCustom(sel) {
+    document.getElementById('custom-category-group').style.display = sel.value === 'Other' ? 'block' : 'none';
+  }
+  function selectType(el, type) {
+    document.querySelectorAll('.receipt-type-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('receipt_type_input').value = type;
+  }
+  let selectedFile = null;
+  function onFileSelected(input) {
+    selectedFile = input.files[0];
+    if (!selectedFile) return;
+    const container = document.getElementById('preview-container');
+    const img = document.getElementById('preview-img');
+    container.style.display = 'block';
+    document.getElementById('preview-name').textContent = selectedFile.name + ' (' + (selectedFile.size/1024).toFixed(1) + ' KB)';
+    if (selectedFile.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = e => { img.src = e.target.result; img.style.display = 'block'; };
+      reader.readAsDataURL(selectedFile);
+    } else {
+      img.style.display = 'none';
+    }
+    document.getElementById('ocr-btn').style.display = 'block';
+    document.getElementById('ocr-fields').style.display = 'none';
+    document.getElementById('ocr-status').textContent = '';
+  }
+  function removeFile() {
+    selectedFile = null;
+    document.getElementById('receipt-file').value = '';
+    document.getElementById('preview-container').style.display = 'none';
+    document.getElementById('preview-img').src = '';
+    document.getElementById('ocr-btn').style.display = 'none';
+    document.getElementById('ocr-fields').style.display = 'none';
+    document.getElementById('ocr-status').textContent = '';
+  }
+  async function runOCR() {
+    if (!selectedFile) return;
+    const btn = document.getElementById('ocr-btn');
+    const status = document.getElementById('ocr-status');
+    btn.textContent = '⏳ Extracting...';
+    btn.classList.add('loading');
+    status.textContent = 'Running OCR — this takes a few seconds...';
+    const formData = new FormData();
+    formData.append('receipt', selectedFile);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    try {
+      const response = await fetch("{% url 'ocr_receipt' trip.id %}", { method: 'POST', body: formData });
+      const data = await response.json();
+      if (data.error) {
+        status.textContent = '❌ ' + data.error;
+        btn.textContent = '🔍 Auto-Extract Amount, GST & Merchant';
+        btn.classList.remove('loading');
+        return;
+      }
+      document.getElementById('ocr_amount').value   = data.amount   || '';
+      document.getElementById('ocr_gst').value      = data.gst      || '';
+      document.getElementById('ocr_merchant').value = data.merchant || '';
+      document.getElementById('ocr-fields').style.display = 'block';
+      const found = [data.amount && 'Amount', data.gst && 'GST', data.merchant && 'Merchant'].filter(Boolean).join(', ');
+      status.textContent = found ? `✅ Extracted: ${found} — review and edit if needed.` : '⚠️ Could not read clear text. Fill manually.';
+    } catch(err) {
+      status.textContent = '❌ Network error. Try again.';
+    }
+    btn.textContent = '🔄 Re-Extract';
+    btn.classList.remove('loading');
+  }
+  function useOCRAmount() {
+    const val = document.getElementById('ocr_amount').value;
+    if (val) document.getElementById('id_amount').value = val;
+  }
+  function toggleRecurring(checkbox) {
+    document.getElementById('recurrence-options').style.display = checkbox.checked ? 'block' : 'none';
+    if (!checkbox.checked) {
+      document.querySelectorAll('.freq-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('recurrence_type_input').value = '';
+    }
+  }
+  function selectFreq(el, freq) {
+    document.querySelectorAll('.freq-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('recurrence_type_input').value = freq;
+  }
+</script>
+</body>
 </html>

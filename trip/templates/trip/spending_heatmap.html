@@ -1,0 +1,1457 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Analytics — {{ trip.name }}</title>
+<link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:#f0f4f8; --white:#fff; --surface:#f8f9ff;
+  --border:#e5e7eb; --border-md:#d1d5db;
+  --accent:#6366f1; --accent-lt:#eef2ff; --accent-md:#c7d2fe;
+  --green:#10b981; --green-lt:#d1fae5;
+  --red:#ef4444;   --red-lt:#fee2e2;
+  --yellow:#f59e0b; --yellow-lt:#fef3c7;
+  --purple:#7c3aed; --purple-lt:#ede9fe;
+  --orange:#f97316; --orange-lt:#ffedd5;
+  --cyan:#06b6d4; --cyan-lt:#cffafe;
+  --pink:#ec4899; --pink-lt:#fce7f3;
+  --text:#1f2937; --text-md:#374151; --muted:#6b7280; --muted-lt:#9ca3af;
+  --radius:16px; --radius-sm:10px;
+  --shadow:0 4px 24px rgba(0,0,0,.07);
+  --h0:#ebedf0; --h1:#9be9a8; --h2:#40c463; --h3:#30a14e; --h4:#216e39;
+}
+body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+/* ── Topbar ── */
+.topbar {
+  background:var(--white); border-bottom:1.5px solid var(--border);
+  padding:12px 16px; position:sticky; top:0; z-index:200;
+  display:flex; align-items:center; gap:10px;
+}
+.topbar-back { color:var(--accent); text-decoration:none; font-size:.86rem; font-weight:600; display:inline-flex; align-items:center; gap:3px; flex-shrink:0; }
+.topbar-back:hover { text-decoration:underline; }
+.topbar-title { flex:1; min-width:0; }
+.topbar-title h1 { font-size:.96rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.topbar-title p  { font-size:.7rem; color:var(--muted); }
+.topbar-badge { background:var(--accent); color:#fff; font-size:.68rem; font-weight:700; padding:3px 10px; border-radius:999px; flex-shrink:0; }
+
+/* ── Page ── */
+.page { max-width:860px; margin:0 auto; padding:16px 12px 80px; display:flex; flex-direction:column; gap:14px; }
+
+/* ── Section Label ── */
+.section-label {
+  font-size:.68rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.8px; color:var(--muted); padding:2px 0;
+}
+
+/* ── Card ── */
+.card { background:var(--white); border-radius:20px; padding:18px; box-shadow:var(--shadow); }
+.card-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+.card-icon { width:36px; height:36px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:1.05rem; flex-shrink:0; }
+.card-title { font-size:.92rem; font-weight:700; color:var(--text); }
+.card-sub   { font-size:.7rem; color:var(--muted); margin-top:1px; }
+.card-header-right { margin-left:auto; }
+
+/* ── Stats grid ── */
+.stats-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+@media(min-width:480px){ .stats-grid { grid-template-columns:repeat(3,1fr); } }
+@media(min-width:680px){ .stats-grid { grid-template-columns:repeat(5,1fr); } }
+.stat-card {
+  background:var(--surface); border-radius:13px; padding:13px;
+  animation:fadeUp .4s ease both;
+}
+.stat-card .slabel { font-size:.62rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:4px; }
+.stat-card .svalue { font-size:.96rem; font-weight:700; color:var(--text); line-height:1.2; word-break:break-word; }
+.stat-card .ssub   { font-size:.66rem; color:var(--muted-lt); margin-top:2px; }
+.sv-accent { color:var(--accent); }
+.sv-green  { color:var(--green); }
+.sv-red    { color:var(--red); }
+.sv-yellow { color:var(--yellow); }
+@keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── Chart wrapper ── */
+.chart-wrap { position:relative; width:100%; }
+.chart-wrap.h200 { height:200px; }
+.chart-wrap.h240 { height:240px; }
+.chart-wrap.h280 { height:280px; }
+.chart-wrap.h320 { height:320px; }
+
+/* ── Chart tabs ── */
+.chart-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+.ctab {
+  padding:5px 14px; border-radius:20px; font-size:.75rem; font-weight:700;
+  border:1.5px solid var(--border); background:var(--surface);
+  color:var(--muted); cursor:pointer; transition:all .15s;
+}
+.ctab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.ctab:hover:not(.active) { border-color:var(--accent-md); color:var(--accent); }
+
+/* ── Pie legend ── */
+.pie-legend { display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:12px; }
+.pie-legend-item { display:flex; align-items:center; gap:5px; font-size:.72rem; color:var(--text-md); }
+.pie-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+/* ── Payment mode icons ── */
+.pay-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
+.pay-box {
+  background:var(--surface); border-radius:12px; padding:12px 10px;
+  text-align:center; border:1.5px solid var(--border);
+}
+.pay-box .pay-icon { font-size:1.4rem; margin-bottom:4px; }
+.pay-box .pay-label { font-size:.68rem; font-weight:700; color:var(--muted); }
+.pay-box .pay-amt   { font-size:.9rem; font-weight:700; color:var(--accent); margin-top:2px; }
+.pay-box .pay-pct   { font-size:.65rem; color:var(--muted-lt); }
+
+/* ── Member bars ── */
+.member-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border); }
+.member-row:last-child { border-bottom:none; }
+.member-avatar { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.78rem; font-weight:700; color:#fff; flex-shrink:0; }
+.member-info { flex:1; min-width:0; }
+.member-name { font-size:.84rem; font-weight:700; color:var(--text-md); margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.member-bar-bg { height:6px; background:var(--surface); border-radius:999px; overflow:hidden; }
+.member-bar-fill { height:100%; border-radius:999px; transition:width .6s ease; }
+.member-pct  { font-size:.7rem; font-weight:700; color:var(--muted); flex-shrink:0; min-width:36px; text-align:right; }
+.member-amt  { font-size:.78rem; font-weight:700; flex-shrink:0; min-width:60px; text-align:right; }
+
+/* ── Heatmap section ── */
+.month-nav {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:14px; gap:8px; flex-wrap:wrap;
+}
+.mnav-center { display:flex; align-items:center; gap:6px; }
+.month-label { font-size:.98rem; font-weight:700; color:var(--text); min-width:120px; text-align:center; }
+.nav-btn {
+  width:32px; height:32px; border-radius:50%;
+  border:1.5px solid var(--border); background:var(--white);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; font-size:.95rem; color:var(--text-md); transition:all .15s;
+}
+.nav-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-lt); }
+
+/* ── Month Picker button ── */
+.picker-btn {
+  width:32px; height:32px; border-radius:50%;
+  border:1.5px solid var(--accent-md); background:var(--accent-lt);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; font-size:.88rem; color:var(--accent); transition:all .15s;
+  flex-shrink:0;
+}
+.picker-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+/* ── Trip month badge ── */
+.trip-month-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  font-size:.72rem; font-weight:700;
+  background:rgba(99,102,241,.1);
+  color:var(--accent);
+  border:1.5px solid var(--accent-md);
+  border-radius:20px;
+  padding:4px 12px;
+  margin-bottom:10px;
+}
+
+.year-sel {
+  padding:5px 10px; border:1.5px solid var(--border); border-radius:10px;
+  font-size:.82rem; color:var(--text); background:var(--white); cursor:pointer;
+}
+.year-sel:focus { outline:none; border-color:var(--accent); }
+
+.weekday-row { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; margin-bottom:4px; }
+.wd-label { text-align:center; font-size:.58rem; font-weight:700; color:var(--muted); text-transform:uppercase; }
+
+.hm-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+.hm-cell {
+  aspect-ratio:1; border-radius:5px; position:relative;
+  cursor:pointer; transition:transform .12s, box-shadow .12s;
+}
+.hm-cell.out-month { opacity:.2; cursor:default; pointer-events:none; }
+.hm-cell:not(.out-month):hover { transform:scale(1.3); z-index:30; box-shadow:0 3px 10px rgba(0,0,0,.2); }
+.hm-cell.today-cell { outline:2.5px solid var(--accent); outline-offset:1px; }
+.hm-cell.trip-start { outline:2.5px solid var(--green); outline-offset:1px; }
+.hm-cell.trip-end   { outline:2.5px solid var(--red); outline-offset:1px; }
+.hm-cell.trip-range { background-image: linear-gradient(135deg, rgba(99,102,241,.08) 25%, transparent 25%) !important; }
+.hm-cell.has-event::after {
+  content:''; position:absolute; bottom:2px; right:2px;
+  width:4px; height:4px; border-radius:50%; background:#fff; opacity:.9;
+}
+.day-num { position:absolute; top:2px; left:3px; font-size:.46rem; font-weight:700; color:rgba(0,0,0,.35); pointer-events:none; }
+.hm-0 { background:var(--h0); }
+.hm-1 { background:var(--h1); }
+.hm-2 { background:var(--h2); }
+.hm-3 { background:var(--h3); }
+.hm-4 { background:var(--h4); }
+
+.hm-legend { display:flex; align-items:center; gap:5px; margin-top:12px; font-size:.68rem; color:var(--muted); flex-wrap:wrap; }
+.leg-sw { width:12px; height:12px; border-radius:3px; flex-shrink:0; }
+.leg-gap { flex:1; }
+
+.spinner { display:none; width:28px; height:28px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; margin:20px auto; }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* ── Calendar Legend Tags ── */
+.cal-legend { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+.cal-tag { display:inline-flex; align-items:center; gap:4px; font-size:.65rem; font-weight:600; padding:3px 8px; border-radius:20px; }
+.cal-tag.today-tag    { background:var(--accent-lt); color:var(--accent); border:1.5px solid var(--accent-md); }
+.cal-tag.start-tag    { background:var(--green-lt);  color:#065f46; border:1.5px solid #6ee7b7; }
+.cal-tag.end-tag      { background:var(--red-lt);    color:#991b1b; border:1.5px solid #fca5a5; }
+.cal-tag.event-tag    { background:var(--yellow-lt); color:#92400e; border:1.5px solid #fcd34d; }
+.cal-tag.bday-tag     { background:var(--pink-lt);   color:#9d174d; border:1.5px solid #f9a8d4; }
+.cal-tag.pay-tag      { background:var(--orange-lt); color:#9a3412; border:1.5px solid #fdba74; }
+
+/* ── Event pills on calendar ── */
+.cal-event-row { display:flex; flex-wrap:wrap; gap:5px; margin-top:10px; }
+.cal-event-pill {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:4px 10px; border-radius:20px; font-size:.68rem; font-weight:600;
+  cursor:pointer; transition:opacity .15s;
+}
+.cal-event-pill:hover { opacity:.8; }
+
+/* ── Tooltip ── */
+.tip-box {
+  display:none; position:fixed; z-index:999; pointer-events:none;
+  background:#1f2937; color:#fff; padding:10px 13px;
+  border-radius:12px; min-width:160px; font-size:.75rem;
+  box-shadow:0 8px 28px rgba(0,0,0,.28);
+}
+.tip-date { font-weight:700; font-size:.83rem; margin-bottom:6px; border-bottom:1px solid rgba(255,255,255,.15); padding-bottom:4px; }
+.tip-row  { display:flex; justify-content:space-between; gap:12px; margin-top:3px; }
+.tip-key  { color:#9ca3af; }
+.tip-val  { font-weight:700; }
+.tip-cats { margin-top:6px; border-top:1px solid rgba(255,255,255,.1); padding-top:4px; }
+.tip-cat  { display:flex; justify-content:space-between; gap:8px; margin-top:3px; font-size:.68rem; }
+.tip-cn   { color:#d1d5db; }
+.tip-event-list { margin-top:6px; border-top:1px solid rgba(255,255,255,.1); padding-top:4px; }
+.tip-ev   { font-size:.68rem; color:#fcd34d; margin-top:2px; }
+
+/* ── Insights ── */
+.ins-wrap { background:linear-gradient(135deg,#f5f0ff,#ede9fe); border:1.5px solid #c4b5fd; border-radius:20px; padding:18px; }
+.ins-head { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.ins-icon { width:36px; height:36px; background:var(--purple); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; }
+.ins-grid { display:grid; grid-template-columns:1fr; gap:7px; }
+@media(min-width:480px){ .ins-grid { grid-template-columns:1fr 1fr; } }
+.ins-item { background:#fff; border:1px solid #ddd6fe; border-radius:12px; padding:10px 12px; display:flex; gap:8px; align-items:flex-start; animation:fadeUp .4s ease both; }
+.ins-emoji { font-size:1rem; flex-shrink:0; line-height:1.4; }
+.ins-text  { font-size:.75rem; color:#3b0764; line-height:1.5; font-weight:500; }
+
+/* ── Modal ── */
+.modal-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,.5); z-index:500;
+  align-items:flex-end; justify-content:center;
+}
+.modal-overlay.show { display:flex; animation:fadeOv .2s ease; }
+@keyframes fadeOv { from{opacity:0} to{opacity:1} }
+.modal-box {
+  background:var(--white); border-radius:24px 24px 0 0;
+  width:100%; max-width:640px; max-height:82vh; overflow-y:auto;
+  padding:18px 18px 48px;
+  animation:slideUp .25s cubic-bezier(.4,0,.2,1);
+}
+@keyframes slideUp { from{transform:translateY(60px);opacity:0} to{transform:translateY(0);opacity:1} }
+.modal-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.modal-ttl { font-size:.95rem; font-weight:700; }
+.modal-close { width:30px; height:30px; border-radius:50%; border:none; background:var(--surface); cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center; }
+.modal-total { background:var(--accent-lt); border-radius:12px; padding:11px 14px; display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.mt-label { font-size:.78rem; font-weight:600; color:var(--accent); }
+.mt-value { font-size:1rem; font-weight:700; color:var(--accent); }
+.modal-row { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+.modal-row:last-child { border-bottom:none; }
+.mcat-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1rem; background:var(--surface); flex-shrink:0; }
+.minfo { flex:1; min-width:0; }
+.mexp-title { font-size:.85rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mexp-meta  { font-size:.7rem; color:var(--muted); margin-top:1px; }
+.mexp-amt   { font-size:.9rem; font-weight:700; color:var(--accent); flex-shrink:0; }
+.modal-empty { text-align:center; color:var(--muted-lt); padding:28px 0; font-size:.88rem; }
+
+/* event items in modal */
+.modal-event-item { display:flex; gap:10px; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); }
+.modal-event-item:last-child { border-bottom:none; }
+.modal-ev-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; }
+.modal-ev-text { flex:1; min-width:0; }
+.modal-ev-title { font-size:.85rem; font-weight:700; }
+.modal-ev-sub   { font-size:.7rem; color:var(--muted); margin-top:1px; }
+.modal-ev-badge { font-size:.65rem; font-weight:700; padding:3px 9px; border-radius:20px; flex-shrink:0; }
+
+/* ── Upcoming events panel ── */
+.upcoming-list { display:flex; flex-direction:column; gap:8px; }
+.upcoming-item {
+  display:flex; align-items:center; gap:10px; padding:11px 13px;
+  background:var(--surface); border-radius:12px; border:1.5px solid var(--border);
+}
+.upcoming-icon { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; }
+.upcoming-info { flex:1; min-width:0; }
+.upcoming-title { font-size:.84rem; font-weight:700; color:var(--text); }
+.upcoming-date  { font-size:.69rem; color:var(--muted); margin-top:2px; }
+.upcoming-in    { font-size:.68rem; font-weight:700; padding:3px 9px; border-radius:20px; flex-shrink:0; }
+.in-today  { background:var(--accent-lt); color:var(--accent); }
+.in-soon   { background:var(--yellow-lt); color:#92400e; }
+.in-future { background:var(--surface); color:var(--muted); border:1.5px solid var(--border); }
+
+/* ── No data placeholder ── */
+.no-data { text-align:center; color:var(--muted-lt); padding:28px 0; font-size:.85rem; }
+.no-data i { font-size:1.6rem; display:block; margin-bottom:6px; color:var(--muted-lt); }
+
+/* ════════════════════════════════════════
+   MONTH PICKER MODAL
+   ════════════════════════════════════════ */
+.mpicker-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,.55); z-index:800;
+  align-items:center; justify-content:center;
+}
+.mpicker-overlay.show { display:flex; animation:fadeOv .2s ease; }
+.mpicker-box {
+  background:var(--white); border-radius:22px;
+  padding:20px; width:300px; max-width:92vw;
+  box-shadow:0 20px 60px rgba(0,0,0,.3);
+  animation:slideUp .22s cubic-bezier(.4,0,.2,1);
+}
+.mpicker-head {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:14px;
+}
+.mpicker-title { font-size:.94rem; font-weight:700; }
+.mpicker-close {
+  width:28px; height:28px; border-radius:50%; border:none;
+  background:var(--surface); cursor:pointer; font-size:1rem;
+  display:flex; align-items:center; justify-content:center; color:var(--muted);
+}
+.mpicker-year-row {
+  display:flex; align-items:center; justify-content:center;
+  gap:12px; margin-bottom:14px;
+}
+.mpicker-year-btn {
+  width:28px; height:28px; border-radius:50%; border:1.5px solid var(--border);
+  background:var(--surface); cursor:pointer; font-size:1rem;
+  display:flex; align-items:center; justify-content:center; color:var(--text-md);
+  transition:all .15s;
+}
+.mpicker-year-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-lt); }
+.mpicker-year-label { font-size:1.05rem; font-weight:800; min-width:52px; text-align:center; }
+.mpicker-grid {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:7px;
+  margin-bottom:12px;
+}
+.pm-btn {
+  padding:8px 4px; border-radius:10px;
+  border:1.5px solid var(--border); background:var(--surface);
+  cursor:pointer; font-size:.82rem; font-weight:600;
+  text-align:center; color:var(--text-md);
+  transition:all .15s;
+}
+.pm-btn:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-lt); }
+/* active = currently viewed month */
+.pm-btn.is-active { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:700; }
+/* trip months highlighted in green */
+.pm-btn.is-trip { border-color:var(--green); color:var(--green); }
+.pm-btn.is-trip:hover { background:var(--green); color:#fff; }
+.pm-btn.is-active.is-trip { background:var(--accent); color:#fff; border-color:var(--accent); }
+.mpicker-hint {
+  font-size:.72rem; color:var(--muted); text-align:center;
+  padding-top:10px; border-top:1px solid var(--border);
+  line-height:1.5;
+}
+
+/* ── Mobile ── */
+@media(max-width:480px) {
+  .page { padding:12px 10px 80px; gap:12px; }
+  .card { padding:14px; }
+  .topbar { padding:10px 12px; }
+  .topbar-title h1 { font-size:.88rem; }
+  .pay-grid { grid-template-columns:1fr 1fr; }
+  .chart-wrap.h320 { height:260px; }
+  .chart-wrap.h280 { height:220px; }
+  .month-label { min-width:100px; font-size:.88rem; }
+}
+@media(max-width:360px) {
+  .stats-grid { grid-template-columns:1fr 1fr; }
+  .pay-grid { grid-template-columns:1fr 1fr; }
+}
+
+[data-theme="dark"] {
+  --bg:        #0f1117;
+  --white:     #1a1d27;
+  --surface:   #1e2130;
+  --border:    #2d3148;
+  --accent:    #818cf8;
+  --accent-lt: #1e2040;
+  --accent-md: #4338ca;
+  --green:     #34d399;
+  --green-lt:  #064e3b;
+  --red:       #f87171;
+  --red-lt:    #450a0a;
+  --yellow:    #fbbf24;
+  --yellow-lt: #451a03;
+  --purple:    #a78bfa;
+  --purple-lt: #2e1065;
+  --orange:    #fb923c;
+  --orange-lt: #431407;
+  --text:      #e5e7eb;
+  --text-md:   #d1d5db;
+  --muted:     #9ca3af;
+  --muted-lt:  #6b7280;
+  --shadow:    0 4px 24px rgba(0,0,0,.35);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.25);
+}
+
+  </style>
+<script>
+(function(){
+  var t = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <a href="{% url 'trip_dashboard' trip.id %}" class="topbar-back">
+    <i class="ti ti-arrow-left"></i>
+  </a>
+  <div class="topbar-title">
+    <h1>📊 Analytics</h1>
+    <p>{{ trip.name }} · {{ trip.destination }}</p>
+  </div>
+  <span class="topbar-badge" id="top-badge">{{ month_name }} {{ year }}</span>
+</div>
+
+<div class="page">
+
+  <!-- ── Trip Statistics ── -->
+  <div class="section-label">Trip Statistics</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:var(--accent-lt);">📈</div>
+      <div>
+        <div class="card-title">All-time Overview</div>
+        <div class="card-sub">{{ trip.name }} · {{ trip.destination }}</div>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card" style="animation-delay:.05s">
+        <div class="slabel">🔥 Highest Day</div>
+        <div class="svalue sv-red">₹{{ stats.highest_day.total|floatformat:0 }}</div>
+        <div class="ssub">{{ stats.highest_day.date }}</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.10s">
+        <div class="slabel">🌿 Lowest Day</div>
+        <div class="svalue sv-green">₹{{ stats.lowest_day.total|floatformat:0 }}</div>
+        <div class="ssub">{{ stats.lowest_day.date }}</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.15s">
+        <div class="slabel">📊 Avg Daily</div>
+        <div class="svalue sv-accent">₹{{ stats.avg_daily|floatformat:0 }}</div>
+        <div class="ssub">Per expense day</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.20s">
+        <div class="slabel">📅 Expense Days</div>
+        <div class="svalue">{{ stats.expense_days }}</div>
+        <div class="ssub">{{ stats.no_spend_days }} no-spend</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.25s">
+        <div class="slabel">🧘 Best Streak</div>
+        <div class="svalue sv-green">{{ stats.best_streak }} day{{ stats.best_streak|pluralize }}</div>
+        <div class="ssub">No-spend in a row</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.30s">
+        <div class="slabel">📆 Best Week</div>
+        <div class="svalue sv-accent">₹{{ stats.top_week_amt|floatformat:0 }}</div>
+        <div class="ssub">{{ stats.top_week }}</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.35s">
+        <div class="slabel">🏷️ Top Category</div>
+        <div class="svalue" style="font-size:.82rem;">{{ stats.top_cat }}</div>
+        <div class="ssub">₹{{ stats.top_cat_amt|floatformat:0 }}</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.40s">
+        <div class="slabel">💸 Largest Expense</div>
+        <div class="svalue sv-red">₹{{ stats.largest_amt|floatformat:0 }}</div>
+        <div class="ssub">{{ stats.largest_title|truncatechars:18 }}</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.45s">
+        <div class="slabel">💰 Avg per Entry</div>
+        <div class="svalue sv-yellow">₹{{ stats.avg_expense|floatformat:0 }}</div>
+        <div class="ssub">Per expense</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.50s">
+        <div class="slabel">🎯 Total Spent</div>
+        <div class="svalue sv-accent">₹{{ stats.total_spent|floatformat:0 }}</div>
+        <div class="ssub">of ₹{{ trip_budget|floatformat:0 }} budget</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Charts Section ── -->
+  <div class="section-label">Charts</div>
+
+  <!-- Chart Tab Card -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:var(--accent-lt);">📉</div>
+      <div>
+        <div class="card-title" id="chart-main-title">Daily Spending — {{ month_name }} {{ year }}</div>
+        <div class="card-sub">Switch between chart views below</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="chart-tabs">
+      <button class="ctab active" data-chart="daily">📅 Daily Spending</button>
+      <button class="ctab" data-chart="category">🥧 Category Pie</button>
+      <button class="ctab" data-chart="payment">💳 Payment Mode</button>
+      <button class="ctab" data-chart="member">👥 Member Contribution</button>
+    </div>
+
+    <!-- Month nav for daily chart — now with 📅 picker button -->
+    <div id="month-nav-wrap">
+      <div class="month-nav">
+        <div class="mnav-center">
+          <button class="nav-btn" id="btn-prev-chart">&#8249;</button>
+          <div class="month-label" id="chart-month-label">{{ month_name }} {{ year }}</div>
+          <button class="picker-btn" id="btn-picker-chart" title="Jump to any month">📅</button>
+          <button class="nav-btn" id="btn-next-chart">&#8250;</button>
+        </div>
+        <select class="year-sel" id="chart-year-sel">
+          {% for y in years %}
+          <option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Daily spending line chart -->
+    <div id="pane-daily">
+      <div class="chart-wrap h240">
+        <canvas id="lineChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Category pie chart -->
+    <div id="pane-category" style="display:none;">
+      <div class="chart-wrap h280">
+        <canvas id="pieChart"></canvas>
+      </div>
+      <div class="pie-legend" id="pie-legend-items"></div>
+    </div>
+
+    <!-- Payment mode chart -->
+    <div id="pane-payment" style="display:none;">
+      <div class="pay-grid" id="pay-mode-boxes"></div>
+      <div class="chart-wrap h240">
+        <canvas id="payChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Member contribution chart -->
+    <div id="pane-member" style="display:none;">
+      <div id="member-bars-wrap"></div>
+      <div class="chart-wrap h240" style="margin-top:14px;">
+        <canvas id="memberChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Smart Insights ── -->
+  {% if insights %}
+  <div class="ins-wrap">
+    <div class="ins-head">
+      <div class="ins-icon">💡</div>
+      <div>
+        <div class="card-title" style="color:#4c1d95;">Smart Insights</div>
+        <div class="card-sub" style="color:var(--purple);">Auto-generated from your spending patterns</div>
+      </div>
+    </div>
+    <div class="ins-grid">
+      {% for insight in insights %}
+      <div class="ins-item" style="animation-delay:{{ forloop.counter0 }}00ms">
+        <span class="ins-emoji">
+          {% if "📅" in insight %}📅{% elif "🏷️" in insight %}🏷️{% elif "🔥" in insight %}🔥
+          {% elif "📈" in insight %}📈{% elif "✅" in insight %}✅{% elif "💚" in insight %}💚
+          {% elif "⚠️" in insight %}⚠️{% else %}✨{% endif %}
+        </span>
+        <span class="ins-text">{{ insight|slice:"2:" }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Interactive Calendar ── -->
+  <div class="section-label">Interactive Calendar</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:#d1fae5;">🗓️</div>
+      <div>
+        <div class="card-title">Spending Heatmap + Events</div>
+        <div class="card-sub">Trip dates · expense reminders · birthdays · upcoming trips</div>
+      </div>
+    </div>
+
+    <!-- Trip month badge — shows which month this trip belongs to -->
+    <div class="trip-month-badge" id="trip-month-badge">
+      🗓️ Loading trip month…
+    </div>
+
+    <!-- Calendar nav with 📅 picker -->
+    <div class="month-nav">
+      <div class="mnav-center">
+        <button class="nav-btn" id="btn-prev">&#8249;</button>
+        <div class="month-label" id="month-label">{{ month_name }} {{ year }}</div>
+        <button class="picker-btn" id="btn-picker" title="Jump to any month">📅</button>
+        <button class="nav-btn" id="btn-next">&#8250;</button>
+      </div>
+      <select class="year-sel" id="year-sel">
+        {% for y in years %}
+        <option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+    </select>
+    </div>
+
+    <div class="spinner" id="spinner"></div>
+
+    <div id="cal-wrap">
+      <div class="weekday-row">
+        <div class="wd-label">Mon</div><div class="wd-label">Tue</div><div class="wd-label">Wed</div>
+        <div class="wd-label">Thu</div><div class="wd-label">Fri</div><div class="wd-label">Sat</div>
+        <div class="wd-label">Sun</div>
+      </div>
+      <div class="hm-grid" id="hm-grid"></div>
+    </div>
+
+    <!-- Calendar event pills for current month -->
+    <div class="cal-event-row" id="cal-event-row" style="margin-top:12px;"></div>
+
+    <!-- Legend -->
+    <div class="hm-legend" style="margin-top:10px;">
+      <span>No spend</span>
+      <div class="leg-sw" style="background:var(--h0);border:1px solid #d1d5db;"></div>
+      <div class="leg-sw" style="background:var(--h1);"></div>
+      <div class="leg-sw" style="background:var(--h2);"></div>
+      <div class="leg-sw" style="background:var(--h3);"></div>
+      <div class="leg-sw" style="background:var(--h4);"></div>
+      <span>High spend</span>
+      <div class="leg-gap"></div>
+    </div>
+    <div class="cal-legend">
+      <span class="cal-tag today-tag">⬜ Today</span>
+      <span class="cal-tag start-tag">🟢 Trip Start</span>
+      <span class="cal-tag end-tag">🔴 Trip End</span>
+      <span class="cal-tag event-tag">🟡 Expense Reminder</span>
+      <span class="cal-tag bday-tag">🎂 Birthday</span>
+      <span class="cal-tag pay-tag">💳 Payment Due</span>
+    </div>
+  </div>
+
+  <!-- ── Upcoming Events Panel ── -->
+  <div class="section-label">Upcoming Events</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:var(--orange-lt);">⏰</div>
+      <div>
+        <div class="card-title">Reminders & Upcoming</div>
+        <div class="card-sub">Trip dates · birthdays · payment reminders</div>
+      </div>
+    </div>
+    <div class="upcoming-list" id="upcoming-list">
+      <div class="no-data"><i class="ti ti-calendar-off"></i>Loading events…</div>
+    </div>
+  </div>
+
+  <!-- ── Upcoming Trips Panel ── -->
+  <div class="section-label">Upcoming Trips</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:var(--cyan-lt);">🧳</div>
+      <div>
+        <div class="card-title">Your Other Trips</div>
+        <div class="card-sub">Trips you've planned that haven't started yet</div>
+      </div>
+    </div>
+    <div class="upcoming-list" id="upcoming-trips-list">
+      {% for t in upcoming_trips %}
+      <a href="{% url 'trip_dashboard' t.id %}" class="upcoming-item" style="text-decoration:none;color:inherit;">
+        <div class="upcoming-icon" style="background:var(--cyan-lt);">🧳</div>
+        <div class="upcoming-info">
+          <div class="upcoming-title">{{ t.name }} — {{ t.destination }}</div>
+          <div class="upcoming-date">{{ t.start_date }} → {{ t.end_date }}</div>
+        </div>
+        <span class="upcoming-in {% if t.days_away <= 7 %}in-soon{% else %}in-future{% endif %}">
+          {% if t.days_away == 0 %}Today{% else %}In {{ t.days_away }}d{% endif %}
+        </span>
+      </a>
+      {% empty %}
+      <div class="no-data"><i class="ti ti-luggage-off"></i>No other upcoming trips planned.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<!-- Tooltip -->
+<div class="tip-box" id="tip-box"></div>
+
+<!-- Day Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div class="modal-ttl" id="modal-ttl">Expenses</div>
+      <button class="modal-close" id="modal-close">✕</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     MONTH PICKER MODAL
+     ════════════════════════════════════════ -->
+<div class="mpicker-overlay" id="mpicker-overlay">
+  <div class="mpicker-box">
+    <div class="mpicker-head">
+      <span class="mpicker-title">📅 Jump to Month</span>
+      <button class="mpicker-close" id="mpicker-close">✕</button>
+    </div>
+    <div class="mpicker-year-row">
+      <button class="mpicker-year-btn" id="mpicker-year-prev">‹</button>
+      <span class="mpicker-year-label" id="mpicker-year-label">2026</span>
+      <button class="mpicker-year-btn" id="mpicker-year-next">›</button>
+    </div>
+    <div class="mpicker-grid" id="mpicker-grid"></div>
+    <div class="mpicker-hint" id="mpicker-hint"></div>
+  </div>
+</div>
+
+<!-- ══ Server JSON data ══ -->
+<script id="page-data" type="application/json">
+{
+  "tripId":       {{ trip.id }},
+  "year":         {{ year }},
+  "month":        {{ month }},
+  "today":        "{% now 'Y-m-d' %}",
+  "ajaxUrl":      "{% url 'heatmap_ajax' trip.id %}",
+  "calDays":      {{ cal_days_json|safe }},
+  "expByDay":     {{ exp_by_day_json|safe }},
+  "pieLabels":    {{ pie_labels_json|safe }},
+  "pieAmounts":   {{ pie_amounts_json|safe }},
+  "monthName":    "{{ month_name }}",
+  "tripStart":    "{{ trip.start_date|date:'Y-m-d' }}",
+  "tripEnd":      "{{ trip.end_date|date:'Y-m-d' }}",
+  "tripName":     "{{ trip.name|escapejs }}",
+  "tripDest":     "{{ trip.destination|escapejs }}",
+  "participants": {{ participants_json|safe }},
+  "memberBirthdays": {{ member_bdays_json|safe }},
+  "upcomingTrips":   {{ upcoming_trips_json|safe }}
+}
+</script>
+
+<!-- All-expense data for payment-mode and member charts -->
+<script id="all-exp-data" type="application/json">
+{
+  "paymentModes": {{ payment_totals_json|safe }},
+  "memberTotals": {{ member_totals_json|safe }},
+  "totalSpent": {{ stats.total_spent }}
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+const PD  = JSON.parse(document.getElementById('page-data').textContent);
+const AED = JSON.parse(document.getElementById('all-exp-data').textContent);
+
+let curYear  = PD.year, curMonth = PD.month;
+let curDays  = PD.calDays, expByDay = PD.expByDay;
+let pieLabels = PD.pieLabels, pieAmounts = PD.pieAmounts;
+let curMonthName = PD.monthName;
+const TODAY  = PD.today;
+const TRIP_START = PD.tripStart;
+const TRIP_END   = PD.tripEnd;
+const PARTICIPANTS = PD.participants || [];
+
+const TRIP_START_DATE = new Date(TRIP_START + 'T00:00:00');
+const TRIP_END_DATE   = new Date(TRIP_END   + 'T00:00:00');
+
+// ═══════════════════════════════════════════════
+// TRIP MONTH BADGE — shown at top of calendar card
+// ═══════════════════════════════════════════════
+(function() {
+  const badge = document.getElementById('trip-month-badge');
+  if (!badge) return;
+  const startStr = TRIP_START_DATE.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  const endStr   = TRIP_END_DATE.toLocaleDateString('en-IN',   { month: 'long', year: 'numeric' });
+  if (startStr === endStr) {
+    badge.textContent = '🗓️ Trip Month: ' + startStr;
+  } else {
+    badge.textContent = '🗓️ Trip: ' + startStr + ' → ' + endStr;
+  }
+})();
+
+// ═══════════════════════════════════════════════
+// CALENDAR EVENTS  (birthdays, payment reminders, expense reminders)
+// ═══════════════════════════════════════════════
+const MEMBER_AVATARS_COLORS = ['#6366f1','#10b981','#f59e0b','#ef4444','#a855f7','#06b6d4','#f97316','#ec4899'];
+const MEMBER_BIRTHDAYS = PD.memberBirthdays || {};
+
+// Build events map: date-string → array of event objects
+const EVENTS = {};
+
+function addEvent(dateStr, event) {
+  if (!EVENTS[dateStr]) EVENTS[dateStr] = [];
+  EVENTS[dateStr].push(event);
+}
+
+// Trip start & end
+addEvent(TRIP_START, { type:'trip-start', icon:'🛫', label:'Trip starts: ' + PD.tripName, color:'var(--green)', badgeClass:'start-tag' });
+addEvent(TRIP_END,   { type:'trip-end',   icon:'🏁', label:'Trip ends: ' + PD.tripName,   color:'var(--red)',   badgeClass:'end-tag' });
+
+// Payment reminder — last day of each month in the trip date range
+(function() {
+  const s = new Date(TRIP_START + 'T00:00:00');
+  const e = new Date(TRIP_END   + 'T00:00:00');
+  let d = new Date(s.getFullYear(), s.getMonth() + 1, 0);
+  while (d <= e) {
+    const ds = d.toISOString().slice(0,10);
+    addEvent(ds, { type:'payment', icon:'💳', label:'Monthly payment reminder', color:'var(--orange)', badgeClass:'pay-tag' });
+    d = new Date(d.getFullYear(), d.getMonth() + 2, 0);
+  }
+})();
+
+// Expense reminder — midpoint of trip
+(function() {
+  const s = new Date(TRIP_START + 'T00:00:00');
+  const e = new Date(TRIP_END   + 'T00:00:00');
+  const mid = new Date((s.getTime() + e.getTime()) / 2);
+  mid.setDate(1);
+  const midStr = mid.toISOString().slice(0,10);
+  addEvent(midStr, { type:'reminder', icon:'📋', label:'Mid-trip budget check', color:'var(--yellow)', badgeClass:'event-tag' });
+})();
+
+// Member birthdays
+PARTICIPANTS.forEach(name => {
+  if (!name) return;
+  const mmdd = MEMBER_BIRTHDAYS[name];
+  if (!mmdd) return;
+  const [mm, dd] = mmdd.split('-').map(Number);
+  if (!mm || !dd) return;
+  {% for y in years %}
+  (function() {
+    const ds = `{{ y }}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+    addEvent(ds, { type:'birthday', icon:'🎂', label:`${name}'s Birthday`, color:'var(--pink)', badgeClass:'bday-tag' });
+  })();
+  {% endfor %}
+});
+
+// ═══════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════
+function lvl(amount) {
+  if (!amount || amount === 0) return 0;
+  if (amount <= 500)  return 1;
+  if (amount <= 1500) return 2;
+  if (amount <= 3000) return 3;
+  return 4;
+}
+
+function dateInRange(ds, start, end) {
+  return ds >= start && ds <= end;
+}
+
+function daysFrom(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const t = new Date(TODAY   + 'T00:00:00');
+  return Math.round((d - t) / 86400000);
+}
+
+function fmtDate(ds) {
+  const d = new Date(ds + 'T00:00:00');
+  return d.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
+}
+
+// ═══════════════════════════════════════════════
+// BUILD GRID
+// ═══════════════════════════════════════════════
+function buildGrid(days) {
+  const grid = document.getElementById('hm-grid');
+  grid.innerHTML = '';
+  days.forEach(day => {
+    const cell = document.createElement('div');
+    const l = lvl(day.total);
+    let cls = 'hm-cell hm-' + l;
+    if (!day.in_month)      cls += ' out-month';
+    if (day.date === TODAY) cls += ' today-cell';
+    if (day.date === TRIP_START) cls += ' trip-start';
+    if (day.date === TRIP_END)   cls += ' trip-end';
+    if (day.in_month && EVENTS[day.date]) cls += ' has-event';
+
+    cell.className = cls;
+    const dn = document.createElement('span');
+    dn.className = 'day-num';
+    dn.textContent = day.day_num;
+    cell.appendChild(dn);
+
+    if (day.in_month) {
+      cell.addEventListener('mouseenter', e => showTip(e, day));
+      cell.addEventListener('mousemove',  e => moveTip(e));
+      cell.addEventListener('mouseleave', hideTip);
+      cell.addEventListener('click',      () => openModal(day));
+    }
+    grid.appendChild(cell);
+  });
+
+  renderEventPills(days);
+}
+
+function renderEventPills(days) {
+  const row = document.getElementById('cal-event-row');
+  row.innerHTML = '';
+  const seen = new Set();
+  days.filter(d => d.in_month).forEach(d => {
+    const evts = EVENTS[d.date] || [];
+    evts.forEach(ev => {
+      const key = ev.label + d.date;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const pill = document.createElement('span');
+      pill.className = 'cal-event-pill';
+      pill.style.background = ev.color + '22';
+      pill.style.border = '1.5px solid ' + ev.color + '55';
+      pill.style.color = ev.color;
+      pill.innerHTML = `${ev.icon} <span>${ev.label} (${fmtDate(d.date)})</span>`;
+      pill.onclick = () => openEventModal(d);
+      row.appendChild(pill);
+    });
+  });
+  if (!row.children.length) {
+    row.innerHTML = '<span style="font-size:.72rem;color:var(--muted-lt);">No events this month.</span>';
+  }
+}
+
+// ═══════════════════════════════════════════════
+// TOOLTIP
+// ═══════════════════════════════════════════════
+const tipBox = document.getElementById('tip-box');
+
+function showTip(e, day) {
+  const label = fmtDate(day.date);
+  let cHtml = '';
+  const cats = day.categories || {};
+  if (Object.keys(cats).length) {
+    cHtml = '<div class="tip-cats">';
+    for (const [cat, amt] of Object.entries(cats)) {
+      cHtml += `<div class="tip-cat"><span class="tip-cn">${cat}</span><span>₹${parseFloat(amt).toFixed(0)}</span></div>`;
+    }
+    cHtml += '</div>';
+  }
+  const evts = EVENTS[day.date] || [];
+  let evHtml = '';
+  if (evts.length) {
+    evHtml = '<div class="tip-event-list">';
+    evts.forEach(ev => { evHtml += `<div class="tip-ev">${ev.icon} ${ev.label}</div>`; });
+    evHtml += '</div>';
+  }
+  tipBox.innerHTML = `
+    <div class="tip-date">${label}</div>
+    <div class="tip-row"><span class="tip-key">Total Spent</span><span class="tip-val">₹${parseFloat(day.total||0).toFixed(0)}</span></div>
+    <div class="tip-row"><span class="tip-key">Expenses</span><span class="tip-val">${day.count||0}</span></div>
+    ${cHtml}${evHtml}`;
+  tipBox.style.display = 'block';
+  moveTip(e);
+}
+function moveTip(e) {
+  let x = e.clientX + 16, y = e.clientY - 10;
+  if (x + 200 > window.innerWidth) x = e.clientX - 210;
+  if (y + 180 > window.innerHeight) y = e.clientY - 190;
+  tipBox.style.left = x + 'px';
+  tipBox.style.top  = y + 'px';
+}
+function hideTip() { tipBox.style.display = 'none'; }
+
+// ═══════════════════════════════════════════════
+// MODAL — Day expenses + events
+// ═══════════════════════════════════════════════
+const ICONS = {
+  'Accommodation':'🏨','Transport':'🚗','Food & Dining':'🍽️','Drinks':'🍻',
+  'Shopping & Souvenirs':'🛍️','Emergency / Medical':'🏥',
+  'Activities & Entertainment':'🎭','Tips & Service Charges':'💝','Other':'💰'
+};
+const overlay  = document.getElementById('modal-overlay');
+const modalTtl = document.getElementById('modal-ttl');
+const modalBdy = document.getElementById('modal-body');
+
+document.getElementById('modal-close').onclick = () => overlay.classList.remove('show');
+overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('show'); });
+
+function openModal(day) {
+  const label = new Date(day.date + 'T00:00:00').toLocaleDateString('en-IN', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+  modalTtl.textContent = label;
+
+  let html = '';
+
+  const evts = EVENTS[day.date] || [];
+  if (evts.length) {
+    html += '<div style="margin-bottom:12px;">';
+    html += '<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px;">Events on this day</div>';
+    evts.forEach(ev => {
+      html += `<div class="modal-event-item">
+        <div class="modal-ev-icon" style="background:${ev.color}22;">${ev.icon}</div>
+        <div class="modal-ev-text">
+          <div class="modal-ev-title">${ev.label}</div>
+          <div class="modal-ev-sub">${fmtDate(day.date)}</div>
+        </div>
+        <span class="modal-ev-badge cal-tag ${ev.badgeClass}">${ev.type}</span>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  const exps = expByDay[day.date] || [];
+  if (exps.length) {
+    const total = exps.reduce((s, e) => s + e.amount, 0);
+    html += `<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px;">Expenses</div>`;
+    html += `<div class="modal-total"><span class="mt-label">Day Total</span><span class="mt-value">₹${total.toFixed(0)}</span></div>`;
+    exps.forEach(exp => {
+      html += `<div class="modal-row">
+        <div class="mcat-icon">${ICONS[exp.category]||'💰'}</div>
+        <div class="minfo">
+          <div class="mexp-title">${exp.title}</div>
+          <div class="mexp-meta">${exp.category} · ${exp.payment_mode} · ${exp.paid_by} · ${exp.time}</div>
+          ${exp.description ? `<div class="mexp-meta">${exp.description}</div>` : ''}
+        </div>
+        <div class="mexp-amt">₹${parseFloat(exp.amount).toFixed(0)}</div>
+      </div>`;
+    });
+  } else if (!evts.length) {
+    html = '<div class="modal-empty">😴 No expenses or events on this day.</div>';
+  } else if (!exps.length) {
+    html += '<div class="modal-empty" style="padding:12px 0;">😴 No expenses on this day.</div>';
+  }
+
+  modalBdy.innerHTML = html;
+  overlay.classList.add('show');
+}
+
+function openEventModal(day) { openModal(day); }
+
+// ═══════════════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════════════
+const PIE_COLORS = ['#6366f1','#10b981','#f59e0b','#ef4444','#a855f7','#06b6d4','#f97316','#ec4899','#84cc16','#14b8a6'];
+let lineChart = null, pieChart = null, payChart = null, memberChart = null;
+let activeChartTab = 'daily';
+
+function buildLineChart(days) {
+  const inMonth = days.filter(d => d.in_month);
+  const labels  = inMonth.map(d => d.day_num);
+  const values  = inMonth.map(d => parseFloat(d.total || 0));
+
+  if (lineChart) {
+    lineChart.data.labels = labels;
+    lineChart.data.datasets[0].data = values;
+    lineChart.update('active');
+    return;
+  }
+  const ctx = document.getElementById('lineChart').getContext('2d');
+  lineChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Daily Spend (₹)',
+        data: values,
+        borderColor: '#6366f1',
+        backgroundColor: 'rgba(99,102,241,.12)',
+        borderWidth: 2.5,
+        pointRadius: 4,
+        pointBackgroundColor: '#6366f1',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 1.5,
+        fill: true,
+        tension: 0.4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ₹' + ctx.parsed.y.toFixed(0) } }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+        y: { beginAtZero: true, ticks: { callback: v => '₹' + v, font: { size: 10 } }, grid: { color: '#f3f4f6' } }
+      }
+    }
+  });
+}
+
+function buildPieChart(labels, amounts) {
+  const canvas = document.getElementById('pieChart');
+  if (!labels || !labels.length) {
+    canvas.parentElement.innerHTML = '<div class="no-data"><i class="ti ti-chart-pie-off"></i>No category data this month.</div>';
+    return;
+  }
+
+  const legend = document.getElementById('pie-legend-items');
+  legend.innerHTML = '';
+  labels.forEach((lbl, i) => {
+    const col = PIE_COLORS[i % PIE_COLORS.length];
+    legend.innerHTML += `<span class="pie-legend-item"><span class="pie-dot" style="background:${col};"></span>${lbl}</span>`;
+  });
+
+  if (pieChart) {
+    pieChart.data.labels = labels;
+    pieChart.data.datasets[0].data = amounts;
+    pieChart.data.datasets[0].backgroundColor = PIE_COLORS.slice(0, labels.length);
+    pieChart.update('active');
+    return;
+  }
+  const ctx = canvas.getContext('2d');
+  pieChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: amounts,
+        backgroundColor: PIE_COLORS.slice(0, labels.length),
+        borderWidth: 2, borderColor: '#fff', hoverOffset: 8,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+              const pct = total > 0 ? ((ctx.parsed / total)*100).toFixed(1) : 0;
+              return ` ₹${ctx.parsed.toFixed(0)} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function buildPaymentChart() {
+  const modes  = Object.keys(AED.paymentModes);
+  const amts   = modes.map(m => parseFloat(AED.paymentModes[m] || 0));
+  const total  = amts.reduce((a,b)=>a+b,0);
+
+  const PAY_ICONS  = { 'UPI':'📲', 'Cash':'💵', 'Card':'💳' };
+  const PAY_COLORS = { 'UPI':'var(--accent)', 'Cash':'var(--green)', 'Card':'var(--yellow)' };
+
+  const boxWrap = document.getElementById('pay-mode-boxes');
+  boxWrap.innerHTML = '';
+  modes.forEach((m, i) => {
+    const pct = total > 0 ? ((amts[i]/total)*100).toFixed(1) : 0;
+    boxWrap.innerHTML += `
+      <div class="pay-box">
+        <div class="pay-icon">${PAY_ICONS[m] || '💰'}</div>
+        <div class="pay-label">${m}</div>
+        <div class="pay-amt">₹${amts[i].toFixed(0)}</div>
+        <div class="pay-pct">${pct}%</div>
+      </div>`;
+  });
+
+  if (payChart) {
+    payChart.data.labels = modes;
+    payChart.data.datasets[0].data = amts;
+    payChart.update('active');
+    return;
+  }
+  const ctx = document.getElementById('payChart').getContext('2d');
+  payChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: modes,
+      datasets: [{
+        label: 'Amount (₹)',
+        data: amts,
+        backgroundColor: modes.map(m => PAY_COLORS[m] || 'var(--accent)'),
+        borderRadius: 8,
+        borderWidth: 0,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ₹' + ctx.parsed.y.toFixed(0) } }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 12, weight: '600' } } },
+        y: { beginAtZero: true, ticks: { callback: v => '₹' + v, font: { size: 10 } }, grid: { color: '#f3f4f6' } }
+      }
+    }
+  });
+}
+
+function buildMemberChart() {
+  const members = Object.keys(AED.memberTotals);
+  const amts    = members.map(m => parseFloat(AED.memberTotals[m] || 0));
+  const total   = amts.reduce((a,b)=>a+b, 0);
+
+  const barsWrap = document.getElementById('member-bars-wrap');
+  barsWrap.innerHTML = '';
+  members.forEach((name, i) => {
+    const pct = total > 0 ? ((amts[i]/total)*100).toFixed(1) : 0;
+    const col = MEMBER_AVATARS_COLORS[i % MEMBER_AVATARS_COLORS.length];
+    barsWrap.innerHTML += `
+      <div class="member-row">
+        <div class="member-avatar" style="background:${col};">${name[0]?.toUpperCase()||'?'}</div>
+        <div class="member-info">
+          <div class="member-name">${name}</div>
+          <div class="member-bar-bg">
+            <div class="member-bar-fill" style="width:${pct}%;background:${col};"></div>
+          </div>
+        </div>
+        <span class="member-pct">${pct}%</span>
+        <span class="member-amt" style="color:${col};">₹${amts[i].toFixed(0)}</span>
+      </div>`;
+  });
+
+  if (!members.length) {
+    barsWrap.innerHTML = '<div class="no-data"><i class="ti ti-users-off"></i>No member data.</div>';
+    return;
+  }
+
+  if (memberChart) {
+    memberChart.data.labels = members;
+    memberChart.data.datasets[0].data = amts;
+    memberChart.update('active');
+    return;
+  }
+  const ctx = document.getElementById('memberChart').getContext('2d');
+  memberChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: members,
+      datasets: [{
+        label: 'Amount (₹)',
+        data: amts,
+        backgroundColor: members.map((_, i) => MEMBER_AVATARS_COLORS[i % MEMBER_AVATARS_COLORS.length]),
+        borderRadius: 8, borderWidth: 0,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ₹' + ctx.parsed.x.toFixed(0) } }
+      },
+      scales: {
+        x: { beginAtZero: true, ticks: { callback: v => '₹' + v, font: { size: 10 } }, grid: { color: '#f3f4f6' } },
+        y: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' } } }
+      }
+    }
+  });
+}
+
+// ── Chart tab switching ──
+document.querySelectorAll('.ctab').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.ctab').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    activeChartTab = this.dataset.chart;
+
+    document.getElementById('pane-daily').style.display    = 'none';
+    document.getElementById('pane-category').style.display = 'none';
+    document.getElementById('pane-payment').style.display  = 'none';
+    document.getElementById('pane-member').style.display   = 'none';
+    document.getElementById('month-nav-wrap').style.display = activeChartTab === 'daily' ? 'block' : 'none';
+
+    document.getElementById('pane-' + activeChartTab).style.display = 'block';
+
+    if (activeChartTab === 'category') {
+      document.getElementById('chart-main-title').textContent = `Category Breakdown — ${curMonthName} ${curYear}`;
+      buildPieChart(pieLabels, pieAmounts);
+    } else if (activeChartTab === 'payment') {
+      document.getElementById('chart-main-title').textContent = 'Payment Mode Distribution';
+      buildPaymentChart();
+    } else if (activeChartTab === 'member') {
+      document.getElementById('chart-main-title').textContent = 'Member Contribution';
+      buildMemberChart();
+    } else {
+      document.getElementById('chart-main-title').textContent = `Daily Spending — ${curMonthName} ${curYear}`;
+    }
+  });
+});
+
+// ═══════════════════════════════════════════════
+// UPCOMING EVENTS PANEL
+// ═══════════════════════════════════════════════
+function buildUpcomingPanel() {
+  const list = document.getElementById('upcoming-list');
+  const today = new Date(TODAY + 'T00:00:00');
+
+  const upcoming = [];
+
+  Object.keys(EVENTS).forEach(ds => {
+    const d = new Date(ds + 'T00:00:00');
+    const diff = Math.round((d - today) / 86400000);
+    EVENTS[ds].forEach(ev => {
+      upcoming.push({ date: ds, diff, ev });
+    });
+  });
+
+  upcoming.sort((a, b) => a.diff - b.diff);
+
+  if (!upcoming.length) {
+    list.innerHTML = '<div class="no-data"><i class="ti ti-calendar-off"></i>No events found.</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  upcoming.forEach(({ date: ds, diff, ev }) => {
+    let inLabel, inClass;
+    if (diff === 0)      { inLabel = 'Today';          inClass = 'in-today'; }
+    else if (diff < 0)   { inLabel = `${Math.abs(diff)}d ago`; inClass = 'in-future'; }
+    else if (diff <= 7)  { inLabel = `In ${diff}d`;    inClass = 'in-soon'; }
+    else                 { inLabel = `In ${diff}d`;    inClass = 'in-future'; }
+
+    list.innerHTML += `
+      <div class="upcoming-item">
+        <div class="upcoming-icon" style="background:${ev.color}22;">${ev.icon}</div>
+        <div class="upcoming-info">
+          <div class="upcoming-title">${ev.label}</div>
+          <div class="upcoming-date">${fmtDate(ds)}</div>
+        </div>
+        <span class="upcoming-in ${inClass}">${inLabel}</span>
+      </div>`;
+  });
+}
+
+// ═══════════════════════════════════════════════
+// AJAX — load new month
+// ═══════════════════════════════════════════════
+async function loadMonth(year, month) {
+  const spinner = document.getElementById('spinner');
+  const calWrap = document.getElementById('cal-wrap');
+  spinner.style.display = 'block';
+  calWrap.style.opacity = '.3';
+  hideTip();
+
+  try {
+    const res  = await fetch(`${PD.ajaxUrl}?year=${year}&month=${month}`);
+    const data = await res.json();
+
+    curYear = data.year; curMonth = data.month;
+    curDays = data.cal_days; expByDay = data.exp_by_day || {};
+    pieLabels = data.pie_labels || []; pieAmounts = data.pie_amounts || [];
+    curMonthName = data.month_name;
+
+    document.getElementById('month-label').textContent = `${data.month_name} ${data.year}`;
+    document.getElementById('chart-month-label').textContent = `${data.month_name} ${data.year}`;
+    document.getElementById('year-sel').value = year;
+    document.getElementById('chart-year-sel').value = year;
+    document.getElementById('top-badge').textContent = `${data.month_name} ${data.year}`;
+    document.getElementById('chart-main-title').textContent = `Daily Spending — ${data.month_name} ${data.year}`;
+
+    buildGrid(curDays);
+    if (activeChartTab === 'daily') buildLineChart(curDays);
+    if (activeChartTab === 'category') buildPieChart(pieLabels, pieAmounts);
+  } catch(err) { console.error('AJAX error:', err); }
+
+  spinner.style.display = 'none';
+  calWrap.style.opacity = '1';
+}
+
+// ═══════════════════════════════════════════════
+// NAV EVENT LISTENERS (arrows + year dropdowns)
+// ═══════════════════════════════════════════════
+function navPrev() { let m=curMonth-1,y=curYear; if(m<1){m=12;y--;} loadMonth(y,m); }
+function navNext() { let m=curMonth+1,y=curYear; if(m>12){m=1;y++;} loadMonth(y,m); }
+
+document.getElementById('btn-prev').addEventListener('click', navPrev);
+document.getElementById('btn-next').addEventListener('click', navNext);
+document.getElementById('btn-prev-chart').addEventListener('click', navPrev);
+document.getElementById('btn-next-chart').addEventListener('click', navNext);
+document.getElementById('year-sel').addEventListener('change', function() { loadMonth(parseInt(this.value), curMonth); });
+document.getElementById('chart-year-sel').addEventListener('change', function() { loadMonth(parseInt(this.value), curMonth); });
+
+// ═══════════════════════════════════════════════
+// MONTH PICKER
+// ═══════════════════════════════════════════════
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let pickerYear = curYear;
+
+function openPicker() {
+  pickerYear = curYear;
+  renderPickerGrid();
+  document.getElementById('mpicker-overlay').classList.add('show');
+}
+
+function closePicker() {
+  document.getElementById('mpicker-overlay').classList.remove('show');
+}
+
+function renderPickerGrid() {
+  document.getElementById('mpicker-year-label').textContent = pickerYear;
+
+  // Hint: show trip date range
+  const ts = TRIP_START_DATE.toLocaleDateString('en-IN', { month:'short', year:'numeric' });
+  const te = TRIP_END_DATE.toLocaleDateString('en-IN',   { month:'short', year:'numeric' });
+  document.getElementById('mpicker-hint').innerHTML =
+    `🟢 <strong>Green border</strong> = trip months &nbsp;|&nbsp; ✅ <strong>Filled</strong> = current view<br>Trip: ${ts} → ${te}`;
+
+  const grid = document.getElementById('mpicker-grid');
+  grid.innerHTML = '';
+
+  MONTH_SHORT.forEach((name, i) => {
+    const m = i + 1;
+    const btn = document.createElement('button');
+    btn.className = 'pm-btn';
+    btn.textContent = name;
+
+    // Mark currently viewed month
+    if (pickerYear === curYear && m === curMonth) btn.classList.add('is-active');
+
+    // Mark trip months — any month that overlaps with trip dates
+    const monthStart = new Date(pickerYear, i, 1);
+    const monthEnd   = new Date(pickerYear, i + 1, 0);
+    if (monthEnd >= TRIP_START_DATE && monthStart <= TRIP_END_DATE) {
+      btn.classList.add('is-trip');
+    }
+
+    btn.addEventListener('click', () => {
+      closePicker();
+      loadMonth(pickerYear, m);
+    });
+    grid.appendChild(btn);
+  });
+}
+
+// Open picker buttons
+document.getElementById('btn-picker').addEventListener('click', openPicker);
+document.getElementById('btn-picker-chart').addEventListener('click', openPicker);
+
+// Close picker
+document.getElementById('mpicker-close').addEventListener('click', closePicker);
+document.getElementById('mpicker-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closePicker();
+});
+
+// Year navigation inside picker
+document.getElementById('mpicker-year-prev').addEventListener('click', () => { pickerYear--; renderPickerGrid(); });
+document.getElementById('mpicker-year-next').addEventListener('click', () => { pickerYear++; renderPickerGrid(); });
+
+// ═══════════════════════════════════════════════
+// INITIAL RENDER
+// ═══════════════════════════════════════════════
+buildGrid(curDays);
+buildLineChart(curDays);
+buildUpcomingPanel();
+</script>
+
+</body>
+</html>

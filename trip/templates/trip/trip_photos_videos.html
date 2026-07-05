@@ -9,6 +9,12 @@
     <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon">
     <link rel="manifest" href="{% static 'manifest.json' %}">
     <meta name="theme-color" content="#000000">
+<script>
+(function(){
+  var t = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
 </head>
 <style>
     main {
@@ -71,7 +77,34 @@
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         transition: background-color 0.3s ease, box-shadow 0.3s ease;
     }
-</style>
+
+[data-theme="dark"] {
+  --bg:        #0f1117;
+  --white:     #1a1d27;
+  --surface:   #1e2130;
+  --border:    #2d3148;
+  --accent:    #818cf8;
+  --accent-lt: #1e2040;
+  --accent-md: #4338ca;
+  --green:     #34d399;
+  --green-lt:  #064e3b;
+  --red:       #f87171;
+  --red-lt:    #450a0a;
+  --yellow:    #fbbf24;
+  --yellow-lt: #451a03;
+  --purple:    #a78bfa;
+  --purple-lt: #2e1065;
+  --orange:    #fb923c;
+  --orange-lt: #431407;
+  --text:      #e5e7eb;
+  --text-md:   #d1d5db;
+  --muted:     #9ca3af;
+  --muted-lt:  #6b7280;
+  --shadow:    0 4px 24px rgba(0,0,0,.35);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.25);
+}
+
+  </style>
 
 <body>
     <main>

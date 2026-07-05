@@ -1,127 +1,812 @@
-{%load static%}
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expenses - {{ trip.name }}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(to right, #11181ed4, #4354a0a8, #6d17c981);
-            padding: 30px;
-        }
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Expenses — {{ trip.name }}</title>
+  <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon"/>
+  <link rel="manifest" href="{% static 'manifest.json' %}"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        h2 {
-            text-align: center;
-            color: #ffffff;
-        }
+    :root {
+      --bg:        #f0f4f8;
+      --white:     #ffffff;
+      --surface:   #f8f9ff;
+      --border:    #e5e7eb;
+      --accent:    #6366f1;
+      --accent-lt: #eef2ff;
+      --accent-md: #c7d2fe;
+      --green:     #10b981;
+      --green-lt:  #d1fae5;
+      --red:       #ef4444;
+      --red-lt:    #fee2e2;
+      --yellow:    #f59e0b;
+      --yellow-lt: #fef3c7;
+      --purple:    #7c3aed;
+      --purple-lt: #ede9fe;
+      --orange:    #f97316;
+      --orange-lt: #ffedd5;
+      --text:      #1f2937;
+      --text-md:   #374151;
+      --muted:     #6b7280;
+      --muted-lt:  #9ca3af;
+      --radius:    20px;
+      --radius-sm: 12px;
+      --shadow:    0 4px 24px rgba(0,0,0,.07);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.05);
+    }
 
-        .totals {
-            text-align: center;
-            margin: 20px 0;
-            font-weight: bold;
-            font-size: 18px;
-        }
+    [data-theme="dark"] {
+      --bg:        #0f1117;
+      --white:     #1a1d27;
+      --surface:   #1e2130;
+      --border:    #2d3148;
+      --accent:    #818cf8;
+      --accent-lt: #1e2040;
+      --accent-md: #4338ca;
+      --green:     #34d399;
+      --green-lt:  #064e3b;
+      --red:       #f87171;
+      --red-lt:    #450a0a;
+      --yellow:    #fbbf24;
+      --yellow-lt: #451a03;
+      --purple:    #a78bfa;
+      --purple-lt: #2e1065;
+      --orange:    #fb923c;
+      --orange-lt: #431407;
+      --text:      #e5e7eb;
+      --text-md:   #d1d5db;
+      --muted:     #9ca3af;
+      --muted-lt:  #6b7280;
+      --shadow:    0 4px 24px rgba(0,0,0,.4);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.3);
+    }
 
-        .card-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 20px;
-        }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
 
-        .card {
-            background: #fff;
-            width: 250px;
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
+    /* ── Topbar ── */
+    .topbar {
+      background: var(--white);
+      border-bottom: 1.5px solid var(--border);
+      padding: 14px 16px;
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+    .topbar-back {
+      color: var(--accent); text-decoration: none;
+      font-size: .88rem; font-weight: 600;
+      display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+    }
+    .topbar-back:hover { text-decoration: underline; }
+    .topbar-title { flex: 1; min-width: 0; }
+    .topbar-title h1 { font-size: 1rem; font-weight: 700; color: var(--text); }
+    .topbar-title p  { font-size: .73rem; color: var(--muted); }
+    .topbar-action {
+      background: var(--accent); color: #fff; border: none;
+      border-radius: var(--radius-sm); padding: 8px 14px;
+      font-size: .8rem; font-weight: 700; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 5px;
+      flex-shrink: 0; cursor: pointer; transition: background .15s;
+    }
+    .topbar-action:hover { background: #4f46e5; }
 
-        .card h3 {
-            margin: 0 0 10px 0;
-            color: #ff7e5f;
-        }
+    /* ── Page ── */
+    .page { max-width: 780px; margin: 0 auto; padding: 20px 16px 60px; display: flex; flex-direction: column; gap: 14px; }
 
-        .card p {
-            margin: 5px 0;
-            font-size: 14px;
-        }
+    /* ── Summary KPIs ── */
+    .kpi-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .kpi-box {
+      background: var(--white); border-radius: 16px; padding: 16px 14px;
+      text-align: center; box-shadow: var(--shadow-sm);
+      border: 1.5px solid var(--border);
+    }
+    .kpi-box .k-lbl { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 5px; }
+    .kpi-box .k-val { font-size: 1.25rem; font-weight: 800; color: var(--text); }
+    .k-val.accent { color: var(--accent); }
+    .k-val.green  { color: var(--green); }
+    .k-val.red    { color: var(--red); }
 
-        .timestamp {
-            margin-top: 10px;
-            font-size: 12px;
-            color: gray;
-            font-style: italic;
-        }
+    /* ── Budget Alert ── */
+    .budget-alert-card {
+      border-radius: 16px; padding: 16px 18px;
+      display: flex; align-items: flex-start; gap: 14px;
+      border: 1.5px solid;
+    }
+    .budget-alert-card.level-caution { background: var(--yellow-lt); border-color: var(--yellow); }
+    .budget-alert-card.level-warning { background: var(--orange-lt); border-color: var(--orange); }
+    .budget-alert-card.level-danger  { background: var(--red-lt);    border-color: var(--red); }
 
-        .back-btn {
-            display: block;
-            width: 150px;
-            text-align: center;
-            margin: 30px auto 0 auto;
-            padding: 10px 0;
-            background: #ccc;
-            color: #333;
-            border-radius: 10px;
-            text-decoration: none;
-        }
+    .alert-icon-wrap {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; flex-shrink: 0;
+      background: rgba(0,0,0,.08);
+    }
+    .alert-body { flex: 1; min-width: 0; }
+    .alert-title { font-size: .9rem; font-weight: 700; margin-bottom: 3px; color: var(--text); }
+    .alert-sub { font-size: .78rem; color: var(--text-md); margin-bottom: 10px; line-height: 1.4; }
+    .bar-track { background: rgba(0,0,0,.12); border-radius: 10px; height: 8px; overflow: hidden; }
+    [data-theme="dark"] .bar-track { background: rgba(255,255,255,.1); }
+    .bar-fill { height: 100%; border-radius: 10px; transition: width .8s cubic-bezier(.4,0,.2,1); }
+    .level-caution .bar-fill { background: linear-gradient(90deg, var(--yellow), var(--orange)); }
+    .level-warning .bar-fill { background: linear-gradient(90deg, var(--orange), var(--red)); }
+    .level-danger  .bar-fill { background: linear-gradient(90deg, var(--red), #dc2626); }
+    .bar-labels { display: flex; justify-content: space-between; margin-top: 5px; font-size: .7rem; font-weight: 600; color: var(--muted); }
 
-        .back-btn:hover {
-            background: #aaa;
-        }
-    </style>
-    <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon">
-    <link rel="manifest" href="{% static 'manifest.json' %}">
-    <meta name="theme-color" content="#000000">
+    /* ── Smart Suggestions ── */
+    .suggestions-card {
+      border-radius: 16px; padding: 16px 18px;
+      background: var(--purple-lt); border: 1.5px solid var(--purple);
+    }
+    .suggestions-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .sug-icon {
+      width: 38px; height: 38px; background: var(--purple);
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; flex-shrink: 0;
+    }
+    .sug-title { font-size: .93rem; font-weight: 700; color: var(--text); }
+    .sug-sub   { font-size: .73rem; color: var(--muted); }
+    .sug-toggle { background: none; border: none; cursor: pointer; font-size: .75rem; font-weight: 600; color: var(--purple); margin-left: auto; flex-shrink: 0; }
+    .sug-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .sug-grid.collapsed { display: none; }
+    .sug-item { background: var(--white); border-radius: 12px; padding: 10px 12px; border: 1px solid var(--border); display: flex; gap: 9px; align-items: flex-start; }
+    .sug-emoji { font-size: 1.15rem; flex-shrink: 0; line-height: 1.3; }
+    .sug-text  { font-size: .78rem; color: var(--text-md); line-height: 1.45; font-weight: 500; }
+    @media(max-width:500px) { .sug-grid { grid-template-columns: 1fr; } }
+
+    /* ── Search ── */
+    .search-wrap {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--white); border: 2px solid var(--border);
+      border-radius: 14px; padding: 11px 16px;
+      transition: border-color .2s, box-shadow .2s;
+      box-shadow: var(--shadow-sm);
+    }
+    .search-wrap:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(99,102,241,.12);
+    }
+    .search-wrap i { color: var(--muted-lt); font-size: 1rem; flex-shrink: 0; }
+    .search-wrap input {
+      border: none; background: transparent; outline: none;
+      font-size: .93rem; color: var(--text); flex: 1; font-family: inherit;
+    }
+    .search-wrap input::placeholder { color: var(--muted-lt); }
+    .search-clear {
+      background: var(--surface); border: none; border-radius: 50%;
+      width: 22px; height: 22px; cursor: pointer; font-size: .7rem;
+      display: none; align-items: center; justify-content: center;
+      color: var(--muted); flex-shrink: 0;
+    }
+    .search-clear.show { display: flex; }
+    .search-clear:hover { background: var(--border); }
+
+    /* ── Filter row ── */
+    .filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .filter-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--white); border: 2px solid var(--border);
+      border-radius: 12px; padding: 9px 14px; cursor: pointer;
+      font-size: .83rem; font-weight: 600; color: var(--muted);
+      transition: all .15s; white-space: nowrap; font-family: inherit;
+    }
+    .filter-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-lt); }
+    .filter-btn.active { border-color: var(--accent); background: var(--accent-lt); color: var(--accent); }
+    .filter-btn .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); display: none; flex-shrink: 0; }
+    .filter-btn.has-active .dot { display: block; }
+
+    /* Quick pills */
+    .quick-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .qpill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 7px 12px; border-radius: 20px; font-size: .78rem; font-weight: 600;
+      border: 1.5px solid var(--border); background: var(--white);
+      color: var(--muted); cursor: pointer; transition: all .15s; font-family: inherit;
+    }
+    .qpill:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-lt); }
+    .qpill.on { border-color: var(--accent); color: var(--accent); background: var(--accent-lt); }
+    .qpill i { font-size: .85rem; }
+
+    /* Filter drawer */
+    .filter-drawer {
+      background: var(--surface); border: 2px solid var(--border);
+      border-radius: 16px; padding: 0 20px;
+      overflow: hidden; max-height: 0;
+      transition: max-height .3s ease, padding .25s ease, opacity .2s;
+      opacity: 0; margin-bottom: 0;
+    }
+    .filter-drawer.open { max-height: 500px; opacity: 1; padding: 18px 20px; margin-bottom: 4px; }
+    .drawer-section-label { font-size: .72rem; font-weight: 700; color: var(--muted-lt); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px; }
+    .filter-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    @media(max-width:560px) { .filter-grid { grid-template-columns: 1fr 1fr; } }
+    .filter-group { display: flex; flex-direction: column; gap: 5px; }
+    .filter-group label { font-size: .73rem; font-weight: 600; color: var(--muted); }
+    .filter-group select,
+    .filter-group input[type=date],
+    .filter-group input[type=number] {
+      padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 9px;
+      font-size: .83rem; background: var(--white); color: var(--text);
+      font-family: inherit; outline: none; transition: border-color .15s; width: 100%;
+    }
+    .filter-group select:focus,
+    .filter-group input:focus { border-color: var(--accent); }
+    .amount-row { display: flex; align-items: center; gap: 5px; }
+    .amount-row input { flex: 1; }
+    .amount-row span { color: var(--muted-lt); font-size: .8rem; font-weight: 600; }
+    .drawer-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 1px solid var(--border); }
+    .btn-done { background: var(--accent); color: #fff; border: none; padding: 8px 20px; border-radius: 9px; font-size: .83rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: background .15s; }
+    .btn-done:hover { background: #4f46e5; }
+    .btn-clear-all { background: none; border: none; color: var(--muted); font-size: .83rem; cursor: pointer; font-family: inherit; transition: color .15s; }
+    .btn-clear-all:hover { color: var(--red); }
+
+    /* Active chips */
+    .chips-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--accent-lt); color: var(--accent);
+      border: 1px solid var(--accent-md); border-radius: 20px;
+      font-size: .75rem; font-weight: 600; padding: 4px 10px;
+      cursor: pointer; transition: background .1s;
+    }
+    .chip:hover { background: var(--accent-md); }
+    .chip i { font-size: .7rem; }
+    .chip-reset {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--white); color: var(--muted);
+      border: 1px solid var(--border); border-radius: 20px;
+      font-size: .75rem; font-weight: 600; padding: 4px 10px; cursor: pointer;
+      transition: all .15s;
+    }
+    .chip-reset:hover { color: var(--red); border-color: var(--red); background: var(--red-lt); }
+
+    /* Result bar */
+    .result-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: .82rem; color: var(--muted);
+      background: var(--white); border-radius: 10px; padding: 9px 14px;
+      box-shadow: var(--shadow-sm); border: 1.5px solid var(--border);
+    }
+    .result-bar strong { color: var(--text); }
+    .result-bar .rtotal { color: var(--accent); font-weight: 700; }
+    .sort-sel {
+      padding: 4px 8px; border: 1px solid var(--border); border-radius: 8px;
+      font-size: .78rem; background: var(--surface); color: var(--muted);
+      outline: none; cursor: pointer; font-family: inherit;
+    }
+
+    /* ── Expense cards ── */
+    .expense-item {
+      display: flex; gap: 14px; align-items: flex-start;
+      border: 1.5px solid var(--border); border-radius: 16px;
+      padding: 15px; background: var(--white);
+      transition: border-color .2s, box-shadow .15s, transform .15s;
+      box-shadow: var(--shadow-sm);
+    }
+    .expense-item:hover { border-color: var(--accent-md); box-shadow: 0 4px 16px rgba(99,102,241,.12); transform: translateY(-1px); }
+    .expense-item.favorited { border-color: var(--yellow); background: var(--yellow-lt); }
+    .expense-item.hidden { display: none; }
+
+    .receipt-thumb { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; cursor: pointer; }
+    .icon-box {
+      width: 56px; height: 56px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; flex-shrink: 0; border: 1px solid var(--border);
+    }
+    .icon-box.cat-accommodation { background: var(--purple-lt); }
+    .icon-box.cat-transport      { background: var(--accent-lt); }
+    .icon-box.cat-food           { background: var(--yellow-lt); }
+    .icon-box.cat-drinks         { background: var(--green-lt); }
+    .icon-box.cat-shopping       { background: var(--red-lt); }
+    .icon-box.cat-emergency      { background: var(--red-lt); }
+    .icon-box.cat-other          { background: var(--surface); }
+
+    .expense-info { flex: 1; min-width: 0; }
+    .expense-title { font-size: .95rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .star-btn { background: none; border: none; cursor: pointer; font-size: 1.05rem; padding: 0; line-height: 1; color: var(--border); transition: transform .15s, color .15s; flex-shrink: 0; }
+    .star-btn:hover { transform: scale(1.3); color: var(--yellow); }
+    .star-btn.on { color: var(--yellow); }
+    .title-text { flex: 1; }
+    mark { background: var(--yellow-lt); color: var(--text); border-radius: 3px; padding: 0 2px; }
+
+    .badge { font-size: .68rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; letter-spacing: .4px; }
+    .badge-bill    { background: var(--yellow-lt); color: var(--yellow); border: 1px solid var(--yellow); }
+    .badge-receipt { background: var(--green-lt);  color: var(--green);  border: 1px solid var(--green); }
+    .badge-photo   { background: var(--purple-lt); color: var(--purple); border: 1px solid var(--purple); }
+    .badge-daily   { background: var(--yellow-lt); color: var(--yellow); border: 1px solid var(--yellow); }
+    .badge-weekly  { background: var(--accent-lt); color: var(--accent); border: 1px solid var(--accent-md); }
+    .badge-monthly { background: var(--purple-lt); color: var(--purple); border: 1px solid var(--purple); }
+
+    .expense-meta { font-size: .78rem; color: var(--muted); margin-top: 5px; display: flex; flex-wrap: wrap; gap: 5px; }
+    .meta-pill { background: var(--surface); padding: 2px 9px; border-radius: 20px; font-size: .75rem; color: var(--text-md); border: 1px solid var(--border); }
+    .meta-pill.merch { background: var(--accent-lt); color: var(--accent); border-color: var(--accent-md); }
+
+    .expense-amount { font-size: 1.05rem; font-weight: 800; color: var(--accent); margin-top: 6px; }
+    .gst-line { font-size: .77rem; color: var(--green); margin-top: 2px; }
+    .view-receipt-link { display: inline-block; margin-top: 5px; font-size: .77rem; color: var(--accent); text-decoration: none; font-weight: 600; }
+    .expense-timestamp { font-size: .72rem; color: var(--muted-lt); margin-top: 5px; display: flex; align-items: center; gap: 3px; }
+
+    /* Empty / no results */
+    .no-results { text-align: center; color: var(--muted-lt); padding: 40px 0; font-size: .93rem; display: none; }
+    .no-results i { font-size: 2rem; display: block; margin-bottom: 8px; }
+    .empty-state { text-align: center; padding: 60px 24px; background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .empty-state .e-icon { font-size: 3.5rem; margin-bottom: 16px; display: block; }
+    .empty-state h3 { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .empty-state p { font-size: .85rem; color: var(--muted); margin-bottom: 24px; }
+
+    /* ── Action buttons ── */
+    .action-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 11px; font-size: .83rem; font-weight: 700; text-decoration: none; border: none; cursor: pointer; font-family: inherit; transition: all .15s; white-space: nowrap; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #4f46e5; transform: translateY(-1px); }
+    .btn-outline { background: var(--surface); color: var(--text-md); border: 1.5px solid var(--border); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-lt); }
+
+    /* Lightbox */
+    .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.88); z-index: 999; align-items: center; justify-content: center; }
+    .lightbox.show { display: flex; }
+    .lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+    .lightbox-close { position: fixed; top: 20px; right: 24px; color: #fff; font-size: 2rem; cursor: pointer; z-index: 1000; opacity: .8; }
+    .lightbox-close:hover { opacity: 1; }
+
+    /* ── Mobile ── */
+    @media (max-width: 480px) {
+      .filter-grid { grid-template-columns: 1fr !important; }
+      .topbar { padding: 10px 12px; }
+      .topbar-title h1 { font-size: .9rem; }
+      .page { padding: 12px 10px 80px; }
+      .expense-item { flex-wrap: wrap; gap: 10px; }
+    }
+  </style>
+  <script>
+  (function(){
+    var t = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+  </script>
 </head>
-
 <body>
-    <h2>Expenses for "{{ trip.name }}"</h2>
 
-    <div class="totals">
-        Total Expenses: ₹{{ total_expenses }} <br>
-        Remaining Budget: ₹{{ remaining_budget }}
+<!-- Topbar -->
+<div class="topbar">
+  <a href="{% url 'trip_dashboard' trip.id %}" class="topbar-back">
+    <i class="ti ti-arrow-left"></i> Dashboard
+  </a>
+  <div class="topbar-title">
+    <h1>Expenses</h1>
+    <p>{{ trip.name }} · {{ trip.destination }}</p>
+  </div>
+  <a href="{% url 'add_expense' trip.id %}" class="topbar-action">
+    <i class="ti ti-plus"></i> Add
+  </a>
+</div>
+
+<div class="page">
+
+  <!-- KPI strip -->
+  <div class="kpi-strip">
+    <div class="kpi-box">
+      <div class="k-lbl">Total Spent</div>
+      <div class="k-val accent">₹{{ total_expenses|floatformat:0 }}</div>
     </div>
-
-    <div class="card-container">
-        {% for exp in expenses %}
-        <div class="card">
-            <h3>{{ exp.title }}</h3>
-            <p><strong>Amount:</strong> ₹{{ exp.amount }}</p>
-            <p><strong>Category:</strong> {{ exp.category }}</p>
-            {% if exp.custom_category %}
-            <p><strong>Custom Category:</strong> {{ exp.custom_category }}</p>
-            {% endif %}
-            <p><strong>Payment Mode:</strong> {{ exp.payment_mode }}</p>
-            {% if exp.participant %}
-            <p><strong>Participant:</strong> {{ exp.participant }}</p>
-            {% endif %}
-            {% if exp.description %}
-            <!--          <p><strong>Description:</strong> {{ exp.description }}</p>-->
-            {% endif %}
-            <p><strong>Paid By:</strong> {{ exp.paid_by }}</p>
-
-            {% if exp.participant %}
-            <p><strong>Participant:</strong> {{ exp.participant }}</p>
-            {% endif %}
-            {% if exp.description %}
-            <p><strong>Description:</strong> {{ exp.description }}</p>
-            {% endif %}
-            <!-- ✅ Timestamp -->
-            <p class="timestamp">
-                Added On: {{ exp.created_at|date:"M. d, Y h:i A" }}
-            </p>
+    <div class="kpi-box">
+      <div class="k-lbl">Remaining Budget</div>
+      {% if remaining_budget is not None %}
+        <div class="k-val {% if remaining_budget < 0 %}red{% else %}green{% endif %}">
+          ₹{{ remaining_budget|floatformat:0 }}
         </div>
-        {% empty %}
-        <p>No expenses added yet.</p>
-        {% endfor %}
+      {% else %}
+        <div class="k-val" style="color:var(--muted);font-size:1rem;">No budget</div>
+      {% endif %}
     </div>
+  </div>
 
-    <a href="{% url 'trip_history' %}" class="back-btn">Back to Trip History</a>
+  <!-- Budget Alert -->
+  {% if budget_alert %}
+  {% with a=budget_alert %}
+  <div class="budget-alert-card level-{{ a.level }}">
+    <div class="alert-icon-wrap">
+      {% if a.level == 'danger' %}🚨{% elif a.level == 'warning' %}⚠️{% else %}📊{% endif %}
+    </div>
+    <div class="alert-body">
+      <div class="alert-title">
+        {% if a.pct >= 100 %}Budget Reached
+        {% elif a.pct >= 90 %}Critical — Almost Out
+        {% elif a.pct >= 80 %}Warning — Running Low
+        {% else %}Heads Up{% endif %}
+      </div>
+      <div class="alert-sub">
+        You've used <strong>{{ a.pct }}%</strong> of your trip budget.
+        {% if remaining_budget %}₹{{ remaining_budget|floatformat:0 }} remaining.{% endif %}
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:{% if a.pct > 100 %}100{% else %}{{ a.pct|floatformat:0 }}{% endif %}%"></div>
+      </div>
+      <div class="bar-labels">
+        <span>₹{{ total_expenses|floatformat:0 }} spent</span>
+        <span>{{ a.pct }}% used</span>
+        <span>Budget ₹{{ trip.budget|floatformat:0 }}</span>
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+  {% endif %}
+
+  <!-- Smart Suggestions -->
+  {% if smart_suggestions %}
+  <div class="suggestions-card">
+    <div class="suggestions-header">
+      <div class="sug-icon">💡</div>
+      <div>
+        <div class="sug-title">Smart Suggestions</div>
+        <div class="sug-sub">Based on your spending patterns</div>
+      </div>
+      <button class="sug-toggle" onclick="toggleSuggestions(this)">Hide ▲</button>
+    </div>
+    <div class="sug-grid" id="sug-grid">
+      {% for tip in smart_suggestions %}
+      <div class="sug-item">
+        <span class="sug-emoji">
+          {% if '💸' in tip %}💸{% elif '👤' in tip %}👤{% elif '🔁' in tip %}🔁{% elif '📅' in tip %}📅{% elif '🏆' in tip %}🏆{% else %}✨{% endif %}
+        </span>
+        <span class="sug-text">{{ tip|slice:"2:" }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Search -->
+  <div class="search-wrap">
+    <i class="ti ti-search"></i>
+    <input type="text" id="search-inp" placeholder="Search expenses, merchants, members…" autocomplete="off" oninput="onSearch()"/>
+    <button class="search-clear" id="search-clear" onclick="clearSearch()"><i class="ti ti-x"></i></button>
+  </div>
+
+  <!-- Filter row -->
+  <div class="filter-row">
+    <button class="filter-btn" id="filter-btn" onclick="toggleDrawer()">
+      <i class="ti ti-adjustments-horizontal"></i> Filters
+      <div class="dot"></div>
+    </button>
+    <div class="quick-pills">
+      <button class="qpill" data-key="starred"   onclick="togglePill(this)"><i class="ti ti-star"></i> Starred</button>
+      <button class="qpill" data-key="recurring" onclick="togglePill(this)"><i class="ti ti-repeat"></i> Recurring</button>
+      <button class="qpill" data-key="upi"       onclick="togglePill(this)"><i class="ti ti-cash"></i> UPI</button>
+      <button class="qpill" data-key="cash"      onclick="togglePill(this)"><i class="ti ti-coins"></i> Cash</button>
+      <button class="qpill" data-key="card"      onclick="togglePill(this)"><i class="ti ti-credit-card"></i> Card</button>
+    </div>
+  </div>
+
+  <!-- Filter drawer -->
+  <div class="filter-drawer" id="filter-drawer">
+    <div class="drawer-section-label">Detailed Filters</div>
+    <div class="filter-grid">
+      <div class="filter-group">
+        <label>Member / Paid by</label>
+        <select id="f-member" onchange="applyFilters()">
+          <option value="">All members</option>
+          {% for p in participants %}<option value="{{ p|lower }}">{{ p }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Category</label>
+        <select id="f-cat" onchange="applyFilters()">
+          <option value="">All categories</option>
+          {% for cat in categories %}<option value="{{ cat|lower }}">{{ cat }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Receipt type</label>
+        <select id="f-rtype" onchange="applyFilters()">
+          <option value="">Any</option>
+          <option value="bill">Bill</option>
+          <option value="receipt">Receipt</option>
+          <option value="photo">Photo</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Amount range (₹)</label>
+        <div class="amount-row">
+          <input type="number" id="f-min" placeholder="Min" min="0" oninput="applyFilters()"/>
+          <span>–</span>
+          <input type="number" id="f-max" placeholder="Max" min="0" oninput="applyFilters()"/>
+        </div>
+      </div>
+      <div class="filter-group">
+        <label>From date</label>
+        <input type="date" id="f-from" onchange="applyFilters()"/>
+      </div>
+      <div class="filter-group">
+        <label>To date</label>
+        <input type="date" id="f-to" onchange="applyFilters()"/>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn-clear-all" onclick="resetAll()">Clear all filters</button>
+      <button class="btn-done" onclick="toggleDrawer()">Done</button>
+    </div>
+  </div>
+
+  <!-- Active filter chips -->
+  <div class="chips-row" id="chips-row"></div>
+
+  <!-- Result bar -->
+  <div class="result-bar">
+    <span>
+      Showing <strong id="result-count">{{ expenses|length }}</strong>
+      expense{{ expenses|length|pluralize }} ·
+      <span class="rtotal" id="result-total">₹{{ filtered_total|floatformat:0 }}</span>
+    </span>
+     <!--<select class="sort-sel" id="sort-sel" onchange="applyFilters()">
+      <option value="date">Newest first</option>
+      <option value="amt-desc">Highest amount</option>
+      <option value="amt-asc">Lowest amount</option>
+    </select> -->
+  </div>
+
+  <!-- Expense list -->
+  <div id="expense-list" style="display:flex;flex-direction:column;gap:10px;">
+  {% if expenses %}
+    {% for exp in expenses %}
+    <div class="expense-item {% if exp.is_favorite %}favorited{% endif %}"
+         id="expense-{{ exp.id }}"
+         data-title="{{ exp.title|lower }}"
+         data-description="{{ exp.description|lower }}"
+         data-merchant="{{ exp.merchant_name|lower|default:'' }}"
+         data-paidby="{{ exp.paid_by|lower }}"
+         data-category="{{ exp.category|lower }}"
+         data-payment="{{ exp.payment_mode|lower }}"
+         data-receipt-type="{{ exp.receipt_type|default:'' }}"
+         data-recurring="{% if exp.is_recurring %}yes{% else %}no{% endif %}"
+         data-favorite="{% if exp.is_favorite %}yes{% else %}no{% endif %}"
+         data-amount="{{ exp.amount }}"
+         data-date="{{ exp.created_at|date:'Y-m-d' }}"
+    >
+      {% if exp.receipt %}
+        <img class="receipt-thumb" src="{{ exp.receipt.url }}" alt="Receipt" onclick="openLightbox('{{ exp.receipt.url }}')"/>
+      {% else %}
+        <div class="icon-box {% if exp.category == 'Accommodation' %}cat-accommodation{% elif exp.category == 'Transport' %}cat-transport{% elif exp.category == 'Food & Dining' %}cat-food{% elif exp.category == 'Drinks' %}cat-drinks{% elif exp.category == 'Shopping & Souvenirs' %}cat-shopping{% elif exp.category == 'Emergency / Medical' %}cat-emergency{% else %}cat-other{% endif %}">
+          {% if exp.category == 'Accommodation' %}🏨{% elif exp.category == 'Transport' %}🚗{% elif exp.category == 'Food & Dining' %}🍽️{% elif exp.category == 'Drinks' %}🍻{% elif exp.category == 'Shopping & Souvenirs' %}🛍️{% elif exp.category == 'Emergency / Medical' %}🏥{% else %}💰{% endif %}
+        </div>
+      {% endif %}
+
+      <div class="expense-info">
+        <div class="expense-title">
+          <button class="star-btn {% if exp.is_favorite %}on{% endif %}"
+                  onclick="toggleFavorite({{ exp.id }}, this)"
+                  title="{% if exp.is_favorite %}Remove from favourites{% else %}Add to favourites{% endif %}">
+            {% if exp.is_favorite %}★{% else %}☆{% endif %}
+          </button>
+          <span class="title-text">{{ exp.title }}</span>
+          {% if exp.receipt_type %}
+            <span class="badge badge-{{ exp.receipt_type }}">
+              {% if exp.receipt_type == 'bill' %}🧾 Bill{% elif exp.receipt_type == 'receipt' %}📄 Receipt{% elif exp.receipt_type == 'photo' %}📷 Photo{% endif %}
+            </span>
+          {% endif %}
+          {% if exp.is_recurring %}
+            <span class="badge badge-{{ exp.recurrence_type }}">🔁 {{ exp.get_recurrence_type_display }}</span>
+          {% endif %}
+        </div>
+        <div class="expense-meta">
+          <span class="meta-pill">{{ exp.category }}</span>
+          <span class="meta-pill">{{ exp.payment_mode }}</span>
+          <span class="meta-pill">Paid by {{ exp.paid_by }}</span>
+          {% if exp.merchant_name %}<span class="meta-pill merch">🏪 {{ exp.merchant_name }}</span>{% endif %}
+          {% if exp.description %}<span class="meta-pill">{{ exp.description }}</span>{% endif %}
+        </div>
+        <div class="expense-amount">₹{{ exp.amount }}</div>
+        {% if exp.gst_amount %}<div class="gst-line">GST: ₹{{ exp.gst_amount }}</div>{% endif %}
+        {% if exp.receipt %}
+          <a class="view-receipt-link" href="{{ exp.receipt.url }}" target="_blank"><i class="ti ti-zoom-in"></i> View receipt</a>
+        {% endif %}
+        <div class="expense-timestamp">
+          <i class="ti ti-clock" style="font-size:.75rem;"></i>
+          {{ exp.created_at|date:"d M Y, h:i A" }}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <span class="e-icon">🧾</span>
+      <h3>No expenses yet</h3>
+      <p>Start adding expenses for this trip.</p>
+      <a href="{% url 'add_expense' trip.id %}" class="btn btn-primary">
+        <i class="ti ti-plus"></i> Add First Expense
+      </a>
+    </div>
+  {% endif %}
+  </div>
+
+  <div class="no-results" id="no-results">
+    <i class="ti ti-mood-empty"></i>
+    No expenses match your filters.
+  </div>
+
+  <!-- Actions -->
+  <div class="action-row">
+    <a href="{% url 'add_expense' trip.id %}" class="btn btn-primary"><i class="ti ti-plus"></i> Add Expense</a>
+    <a href="{% url 'trip_history' %}" class="btn btn-outline"><i class="ti ti-list"></i> All Trips</a>
+    <a href="{% url 'export_expenses_pdf' trip.id %}" class="btn btn-outline"><i class="ti ti-file-type-pdf"></i> PDF</a>
+  </div>
+
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <span class="lightbox-close">&times;</span>
+  <img id="lightbox-img" src="" alt="Receipt"/>
+</div>
+
+<script>
+  const cards = Array.from(document.querySelectorAll('.expense-item'));
+  const activePills = new Set();
+  let drawerOpen = false;
+
+  function onSearch() {
+    const val = document.getElementById('search-inp').value;
+    document.getElementById('search-clear').classList.toggle('show', val.length > 0);
+    applyFilters();
+  }
+  function clearSearch() {
+    document.getElementById('search-inp').value = '';
+    document.getElementById('search-clear').classList.remove('show');
+    applyFilters();
+  }
+  function toggleDrawer() {
+    drawerOpen = !drawerOpen;
+    document.getElementById('filter-drawer').classList.toggle('open', drawerOpen);
+    document.getElementById('filter-btn').classList.toggle('active', drawerOpen);
+  }
+  function togglePill(btn) {
+    const key = btn.dataset.key;
+    if (activePills.has(key)) { activePills.delete(key); btn.classList.remove('on'); }
+    else { activePills.add(key); btn.classList.add('on'); }
+    applyFilters();
+  }
+  function applyFilters() {
+    const q       = document.getElementById('search-inp').value.trim().toLowerCase();
+    const member  = document.getElementById('f-member').value.toLowerCase();
+    const cat     = document.getElementById('f-cat').value.toLowerCase();
+    const rtype   = document.getElementById('f-rtype').value.toLowerCase();
+    const minA    = parseFloat(document.getElementById('f-min').value) || 0;
+    const maxA    = parseFloat(document.getElementById('f-max').value) || Infinity;
+    const dateFrom= document.getElementById('f-from').value;
+    const dateTo  = document.getElementById('f-to').value;
+    let visible = 0, total = 0;
+    cards.forEach(c => {
+      const title    = c.dataset.title || '';
+      const desc     = c.dataset.description || '';
+      const merchant = c.dataset.merchant || '';
+      const paidby   = c.dataset.paidby || '';
+      const amount   = parseFloat(c.dataset.amount) || 0;
+      const date     = c.dataset.date || '';
+      const payment  = c.dataset.payment || '';
+      const receiptType = c.dataset.receiptType || '';
+      const recurring   = c.dataset.recurring;
+      const favorite    = c.dataset.favorite;
+      const show = (
+        (!q || title.includes(q) || desc.includes(q) || merchant.includes(q) || paidby.includes(q)) &&
+        (!member || paidby === member) &&
+        (!cat    || c.dataset.category === cat) &&
+        (!rtype  || receiptType === rtype) &&
+        (amount >= minA && amount <= maxA) &&
+        (!dateFrom || date >= dateFrom) &&
+        (!dateTo   || date <= dateTo) &&
+        (!activePills.has('starred')   || favorite  === 'yes') &&
+        (!activePills.has('recurring') || recurring === 'yes') &&
+        (!activePills.has('upi')       || payment   === 'upi') &&
+        (!activePills.has('cash')      || payment   === 'cash') &&
+        (!activePills.has('card')      || payment   === 'card')
+      );
+      c.classList.toggle('hidden', !show);
+      if (show) {
+        visible++; total += amount;
+        const titleEl = c.querySelector('.title-text');
+        if (titleEl) {
+          const raw = titleEl.textContent;
+          titleEl.innerHTML = q ? raw.replace(new RegExp(`(${escRe(q)})`, 'gi'), '<mark>$1</mark>') : raw;
+        }
+      }
+    });
+    document.getElementById('result-count').textContent = visible;
+    document.getElementById('result-total').textContent = '₹' + total.toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:0});
+    document.getElementById('no-results').style.display = visible === 0 && cards.length > 0 ? 'block' : 'none';
+    updateChips(); updateFilterDot();
+  }
+  function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  function toggleSuggestions(btn) {
+    const grid = document.getElementById('sug-grid');
+    const collapsed = grid.classList.toggle('collapsed');
+    btn.textContent = collapsed ? 'Show ▼' : 'Hide ▲';
+  }
+  function updateChips() {
+    const row = document.getElementById('chips-row');
+    row.innerHTML = '';
+    const q      = document.getElementById('search-inp').value.trim();
+    const member = document.getElementById('f-member').value;
+    const cat    = document.getElementById('f-cat').value;
+    const rtype  = document.getElementById('f-rtype').value;
+    const min    = document.getElementById('f-min').value;
+    const max    = document.getElementById('f-max').value;
+    const from   = document.getElementById('f-from').value;
+    const to     = document.getElementById('f-to').value;
+    const addChip = (label, clear) => {
+      const el = document.createElement('span');
+      el.className = 'chip';
+      el.innerHTML = `${label} <i class="ti ti-x"></i>`;
+      el.onclick = clear; row.appendChild(el);
+    };
+    if (q)      addChip(`"${q}"`,            () => clearSearch());
+    if (member) addChip(`👤 ${member}`,      () => { document.getElementById('f-member').value=''; applyFilters(); });
+    if (cat)    addChip(`🏷 ${cat}`,         () => { document.getElementById('f-cat').value=''; applyFilters(); });
+    if (rtype)  addChip(`🧾 ${rtype}`,       () => { document.getElementById('f-rtype').value=''; applyFilters(); });
+    if (min)    addChip(`₹ ≥ ${min}`,        () => { document.getElementById('f-min').value=''; applyFilters(); });
+    if (max)    addChip(`₹ ≤ ${max}`,        () => { document.getElementById('f-max').value=''; applyFilters(); });
+    if (from)   addChip(`From ${from}`,       () => { document.getElementById('f-from').value=''; applyFilters(); });
+    if (to)     addChip(`To ${to}`,           () => { document.getElementById('f-to').value=''; applyFilters(); });
+    activePills.forEach(key => {
+      addChip(key.charAt(0).toUpperCase()+key.slice(1), () => {
+        activePills.delete(key);
+        document.querySelector(`.qpill[data-key="${key}"]`).classList.remove('on');
+        applyFilters();
+      });
+    });
+    if (row.children.length > 0) {
+      const cl = document.createElement('span');
+      cl.className = 'chip-reset';
+      cl.innerHTML = `<i class="ti ti-x"></i> Clear all`;
+      cl.onclick = resetAll; row.appendChild(cl);
+    }
+  }
+  function updateFilterDot() {
+    const anyActive =
+      document.getElementById('search-inp').value.trim() ||
+      document.getElementById('f-member').value || document.getElementById('f-cat').value ||
+      document.getElementById('f-rtype').value  || document.getElementById('f-min').value  ||
+      document.getElementById('f-max').value    || document.getElementById('f-from').value ||
+      document.getElementById('f-to').value     || activePills.size > 0;
+    document.getElementById('filter-btn').classList.toggle('has-active', !!anyActive);
+  }
+  function resetAll() {
+    document.getElementById('search-inp').value = '';
+    document.getElementById('search-clear').classList.remove('show');
+    ['f-member','f-cat','f-rtype'].forEach(id => document.getElementById(id).value='');
+    ['f-min','f-max','f-from','f-to'].forEach(id => document.getElementById(id).value='');
+    activePills.clear();
+    document.querySelectorAll('.qpill').forEach(p => p.classList.remove('on'));
+    applyFilters();
+  }
+  const CSRF = '{{ csrf_token }}';
+  function toggleFavorite(id, btn) {
+    fetch(`/expense/${id}/toggle-favorite/`, {
+      method: 'POST', headers: {'X-CSRFToken': CSRF}
+    }).then(r => r.json()).then(data => {
+      const card = document.getElementById('expense-'+id);
+      if (data.is_favorite) {
+        btn.textContent='★'; btn.title='Remove from favourites';
+        btn.classList.add('on'); card.classList.add('favorited'); card.dataset.favorite='yes';
+      } else {
+        btn.textContent='☆'; btn.title='Add to favourites';
+        btn.classList.remove('on'); card.classList.remove('favorited'); card.dataset.favorite='no';
+      }
+      applyFilters();
+    });
+  }
+  function openLightbox(url) {
+    document.getElementById('lightbox-img').src = url;
+    document.getElementById('lightbox').classList.add('show');
+  }
+  function closeLightbox() { document.getElementById('lightbox').classList.remove('show'); }
+</script>
 </body>
-
 </html>

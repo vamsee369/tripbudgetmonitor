@@ -1,209 +1,931 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - {{ trip.name }}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(to right, #11181ed4, #4354a0a8, #6d17c981);
-            padding: 30px;
-        }
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard — {{ trip.name }}</title>
+  <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon">
+  <link rel="manifest" href="{% static 'manifest.json' %}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Reset & base ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        h2 {
-            text-align: center;
-            color: #ffffff;
-            margin-bottom: 20px;
-        }
+    :root {
+      --bg:        #f0f4f8;
+      --white:     #ffffff;
+      --surface:   #f8f9ff;
+      --border:    #e5e7eb;
+      --border-md: #d1d5db;
+      --accent:    #6366f1;
+      --accent-lt: #eef2ff;
+      --accent-md: #c7d2fe;
+      --green:     #10b981;
+      --green-lt:  #d1fae5;
+      --red:       #ef4444;
+      --red-lt:    #fee2e2;
+      --yellow:    #f59e0b;
+      --yellow-lt: #fef3c7;
+      --orange:    #f97316;
+      --purple:    #7c3aed;
+      --purple-lt: #ede9fe;
+      --text:      #1f2937;
+      --text-md:   #374151;
+      --muted:     #6b7280;
+      --muted-lt:  #9ca3af;
+      --radius:    16px;
+      --radius-sm: 10px;
+      --shadow:    0 4px 24px rgba(0,0,0,.07);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.05);
+    }
 
-        .section {
-            background: #fff;
-            padding: 20px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0;
+    }
 
-        .photo_gallery {
-            position: relative;
-            height: 350px;
-            border-radius: 25px;
-            overflow: hidden;
-            margin-bottom: 30px;
-            box-shadow: 0 15px 15px rgba(0, 0, 0, 0.4);
-        }
+    /* ── Sticky Header ────────────────────────────────────── */
+    .topbar {
+      background: var(--white);
+      border-bottom: 1.5px solid var(--border);
+      padding: 14px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .topbar-back {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: .88rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .topbar-back:hover { text-decoration: underline; }
+    .topbar-title {
+      flex: 1;
+      min-width: 0;
+    }
+    .topbar-title h1 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .topbar-title p {
+      font-size: .75rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .topbar-action {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 8px 14px;
+      font-size: .8rem;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .topbar-action:hover { background: #4f46e5; }
 
-        .gallery-thumbnail {
-            position: absolute;
-            inset: 0;
-            background-image: url("{% static 'trip/images/thumbnail.jpeg' %}");
+    /* ── Page wrapper ─────────────────────────────────────── */
+    .page {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 20px 16px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
 
-            background-size: cover;
-            background-position: center;
-            filter: brightness(0.80);
-        }
+    /* ── Section card shell ───────────────────────────────── */
+    .card {
+      background: var(--white);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .card-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0;
+    }
+    .card-title { font-size: .92rem; font-weight: 700; color: var(--text); }
+    .card-sub   { font-size: .73rem; color: var(--muted); margin-top: 1px; }
+    .card-header-action {
+      margin-left: auto;
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .card-header-action:hover { text-decoration: underline; }
 
+    /* ── Budget Alert (same style as view_expenses) ─────────── */
+    .budget-alert-card {
+      border-radius: 18px;
+      padding: 16px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+    .budget-alert-card.level-caution  { background: linear-gradient(135deg,#fff8e1,#fff3cd); border: 1.5px solid #f9ca24; }
+    .budget-alert-card.level-warning  { background: linear-gradient(135deg,#fff3e0,#ffe0b2); border: 1.5px solid #fb8c00; }
+    .budget-alert-card.level-danger   { background: linear-gradient(135deg,#fce4ec,#ffebee); border: 1.5px solid #e53935; }
+    .alert-icon-wrap {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; flex-shrink: 0;
+    }
+    .level-caution .alert-icon-wrap { background: #fff3cd; }
+    .level-warning .alert-icon-wrap { background: #ffe0b2; }
+    .level-danger  .alert-icon-wrap { background: #ffebed; }
+    .alert-body { flex: 1; min-width: 0; }
+    .alert-body .alert-title { font-size: .9rem; font-weight: 700; margin-bottom: 3px; }
+    .level-caution .alert-title { color: #7c5800; }
+    .level-warning .alert-title { color: #8d3d00; }
+    .level-danger  .alert-title { color: #b71c1c; }
+    .alert-body .alert-sub { font-size: .78rem; color: #555; margin-bottom: 10px; line-height: 1.4; }
+    .bar-track { background: rgba(0,0,0,.08); border-radius: 10px; height: 8px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 10px; transition: width .8s cubic-bezier(.4,0,.2,1); }
+    .level-caution .bar-fill { background: linear-gradient(90deg,#f9ca24,#f0932b); }
+    .level-warning .bar-fill { background: linear-gradient(90deg,#f0932b,#e55039); }
+    .level-danger  .bar-fill { background: linear-gradient(90deg,#e53935,#c62828); }
+    .bar-labels { display: flex; justify-content: space-between; margin-top: 5px; font-size: .7rem; font-weight: 600; }
+    .level-caution .bar-labels { color: #8d6e00; }
+    .level-warning .bar-labels { color: #8d3d00; }
+    .level-danger  .bar-labels { color: #b71c1c; }
 
-        .gallery-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(to bottom,
-                    rgba(0, 0, 0, 0.342),
-                    rgba(0, 0, 0, 0.139));
-        }
+    /* ── KPI Summary grid (same style as .summary in view_expenses) ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (min-width: 500px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+    .kpi {
+      background: var(--surface);
+      border-radius: 14px;
+      padding: 14px 16px;
+    }
+    .kpi .label {
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+    }
+    .kpi .value {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-top: 4px;
+      line-height: 1.2;
+    }
+    .kpi .value.accent { color: var(--accent); }
+    .kpi .value.green  { color: var(--green); }
+    .kpi .value.red    { color: var(--red); }
+    .kpi .sub {
+      font-size: .7rem;
+      color: var(--muted-lt);
+      margin-top: 3px;
+    }
 
+    /* ── Budget progress (inside a card, no extra wrapper) ── */
+    .budget-bar-track {
+      background: var(--surface);
+      border-radius: 999px;
+      height: 10px;
+      overflow: hidden;
+      margin: 10px 0 6px;
+    }
+    .budget-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width .9s cubic-bezier(.4,0,.2,1);
+    }
+    .bfill-safe    { background: linear-gradient(90deg,#059669,var(--green)); }
+    .bfill-caution { background: linear-gradient(90deg,#d97706,var(--yellow)); }
+    .bfill-warning { background: linear-gradient(90deg,#ea580c,var(--orange)); }
+    .bfill-danger  { background: linear-gradient(90deg,#dc2626,var(--red)); }
+    .budget-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: .72rem;
+      color: var(--muted);
+    }
 
-        .photo_gallery h3 {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 28px;
-            margin: 0;
-            z-index: 10;
-            text-align: center;
-        }
+    /* ── Heatmap ─────────────────────────────────────────── */
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 4px;
+    }
+    .hmap-cell {
+      aspect-ratio: 1;
+      border-radius: 5px;
+      cursor: default;
+      position: relative;
+      transition: transform .15s;
+    }
+    .hmap-cell:hover { transform: scale(1.35); z-index: 10; }
+    .hmap-cell .tip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--text);
+      color: #fff;
+      padding: 5px 9px;
+      border-radius: 8px;
+      font-size: .7rem;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 20;
+    }
+    .hmap-cell:hover .tip { display: block; }
+    .hmap-legend {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 12px;
+      font-size: .72rem;
+      color: var(--muted);
+    }
+    .hmap-swatch {
+      width: 12px; height: 12px;
+      border-radius: 3px;
+    }
 
-        .card-link {
-            position: absolute;
-            inset: 0;
-            z-index: 20;
-            text-decoration: none;
-        }
+    /* ── Category bars ────────────────────────────────────── */
+    .cat-row { margin-bottom: 10px; }
+    .cat-row:last-child { margin-bottom: 0; }
+    .cat-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+    .cat-name {
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--text-md);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .cat-top-badge {
+      font-size: .65rem;
+      font-weight: 700;
+      background: var(--accent-lt);
+      color: var(--accent);
+      border: 1px solid var(--accent-md);
+      border-radius: 999px;
+      padding: 1px 7px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .cat-amt  { font-size: .8rem; font-weight: 700; color: var(--muted); }
+    .cat-track {
+      background: var(--surface);
+      border-radius: 999px;
+      height: 7px;
+      overflow: hidden;
+    }
+    .cat-fill { height: 100%; border-radius: 999px; }
 
+    /* category colors */
+    .cc-0 { background: #6366f1; }
+    .cc-1 { background: #10b981; }
+    .cc-2 { background: #f59e0b; }
+    .cc-3 { background: #ef4444; }
+    .cc-4 { background: #a855f7; }
+    .cc-5 { background: #06b6d4; }
+    .cc-6 { background: #f97316; }
+    .cc-7 { background: #ec4899; }
+    .cc-8 { background: #84cc16; }
 
-        .section h3 {
-            color: #ff7e5f;
-            margin-top: 0;
-        }
+    /* ── Member ranking rows ──────────────────────────────── */
+    .member-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .member-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .member-rank {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .72rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .r1 { background: #fef3c7; color: #92400e; }
+    .r2 { background: #e5e7eb; color: #374151; }
+    .r3 { background: #fde8d0; color: #92400e; }
+    .rn { background: var(--surface); color: var(--muted); }
+    .member-name { flex: 1; font-size: .84rem; font-weight: 600; color: var(--text-md); min-width: 0; }
+    .member-bar-wrap { flex: 1; background: var(--surface); border-radius: 999px; height: 6px; overflow: hidden; max-width: 80px; }
+    .member-bar { height: 100%; background: var(--accent); border-radius: 999px; }
+    .member-amt { font-size: .88rem; font-weight: 700; color: var(--accent); flex-shrink: 0; }
 
-        .card-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
+    /* ── Forecast & Savings stat boxes ────────────────────── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .stat-box {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .stat-box .slabel {
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .stat-box .svalue {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .svalue.green  { color: var(--green); }
+    .svalue.red    { color: var(--red); }
+    .svalue.yellow { color: var(--yellow); }
+    .svalue.accent { color: var(--accent); }
 
-        .card {
-            background: #fefefe;
-            padding: 15px;
-            border-radius: 12px;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-            flex: 1 1 200px;
-        }
+    /* status tag */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border-radius: 999px;
+      font-size: .75rem;
+      font-weight: 700;
+      padding: 4px 12px;
+    }
+    .tag-good { background: var(--green-lt);  color: #065f46; border: 1px solid #a7f3d0; }
+    .tag-bad  { background: var(--red-lt);    color: #991b1b; border: 1px solid #fca5a5; }
 
-        .card h4 {
-            margin: 0 0 5px 0;
-            color: #ff7e5f;
-        }
+    /* Savings highlight box */
+    .savings-highlight {
+      background: var(--surface);
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .savings-highlight .sh-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 5px; }
+    .savings-highlight .sh-value { font-size: 1.7rem; font-weight: 700; }
 
-        .card p {
-            margin: 5px 0;
-            font-size: 14px;
-        }
+    /* ── Recent expense rows ──────────────────────────────── */
+    .exp-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .exp-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .exp-icon {
+      width: 40px; height: 40px;
+      border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.15rem;
+      flex-shrink: 0;
+    }
+    .exp-icon.cat-accommodation { background: var(--purple-lt); }
+    .exp-icon.cat-transport      { background: #dbeafe; }
+    .exp-icon.cat-food           { background: var(--yellow-lt); }
+    .exp-icon.cat-drinks         { background: var(--green-lt); }
+    .exp-icon.cat-shopping       { background: #fce7f3; }
+    .exp-icon.cat-emergency      { background: var(--red-lt); }
+    .exp-icon.cat-other          { background: var(--surface); }
+    .exp-info { flex: 1; min-width: 0; }
+    .exp-title { font-size: .88rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .exp-meta  { font-size: .73rem; color: var(--muted); margin-top: 2px; }
+    .meta-pill {
+      display: inline-block;
+      background: var(--surface);
+      border-radius: 999px;
+      padding: 1px 8px;
+      font-size: .72rem;
+      color: var(--text-md);
+    }
+    .exp-amount { font-size: .95rem; font-weight: 700; color: var(--accent); flex-shrink: 0; }
 
-        .btn {
-            display: inline-block;
-            padding: 10px 20px;
-            margin: 10px 5px 0 0;
-            background: #a82d38eb;
-            color: #fff;
-            border-radius: 10px;
-            text-decoration: none;
-            font-weight: bold;
-        }
+    /* ── Participant chips ────────────────────────────────── */
+    .participant-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .p-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-lt);
+      border: 1.5px solid var(--accent-md);
+      color: var(--accent);
+      border-radius: 999px;
+      padding: 5px 14px;
+      font-size: .8rem;
+      font-weight: 600;
+    }
 
-        .btn:hover {
-            background: #030553;
-        }
+    /* ── Quick actions row ────────────────────────────────── */
+    .actions-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    @media (min-width: 420px) { .actions-row { grid-template-columns: repeat(3, 1fr); } }
+    .action-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 14px 10px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      text-decoration: none;
+      color: var(--text-md);
+      font-size: .75rem;
+      font-weight: 600;
+      transition: all .15s;
+      text-align: center;
+    }
+    .action-btn i { font-size: 1.3rem; color: var(--accent); }
+    .action-btn:hover { border-color: var(--accent); background: var(--accent-lt); color: var(--accent); }
+    .action-btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .action-btn.primary i { color: #fff; }
+    .action-btn.primary:hover { background: #4f46e5; }
 
-        .cost-section {
-            text-align: center;
-            background: #fff;
-            padding: 20px;
-            border-radius: 15px;
-            margin-top: 20px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
+    /* ── Smart suggestions (same as view_expenses) ─────────── */
+    .suggestions-card {
+      border-radius: 18px;
+      padding: 16px 18px;
+      background: linear-gradient(135deg,#f5f0ff,#ede9fe);
+      border: 1.5px solid #c4b5fd;
+    }
+    .suggestions-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .sug-icon {
+      width: 38px; height: 38px;
+      background: var(--purple);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .sug-title { font-size: .9rem; font-weight: 700; color: #4c1d95; }
+    .sug-sub   { font-size: .72rem; color: var(--purple); }
+    .sug-grid  { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    @media (min-width: 480px) { .sug-grid { grid-template-columns: 1fr 1fr; } }
+    .sug-item {
+      background: #fff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      border: 1px solid #ddd6fe;
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+    }
+    .sug-emoji { font-size: 1.1rem; flex-shrink: 0; line-height: 1.3; }
+    .sug-text  { font-size: .77rem; color: #3b0764; line-height: 1.45; font-weight: 500; }
+    .sug-toggle {
+      background: none; border: none; cursor: pointer;
+      font-size: .75rem; font-weight: 600; color: var(--purple);
+      margin-left: auto; flex-shrink: 0; align-self: center;
+    }
+    .sug-grid.collapsed { display: none; }
 
-        .cost-section h3 {
-            color: #ff7e5f;
-            margin-bottom: 10px;
-        }
+    /* ── Chart container ─────────────────────────────────── */
+    .chart-wrap { position: relative; height: 160px; }
 
-        .cost-section p {
-            font-size: 18px;
-            font-weight: bold;
-            color: #333;
-        }
-    </style>
-    <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon">
-    <link rel="manifest" href="{% static 'manifest.json' %}">
-    <meta name="theme-color" content="#000000">
+    /* ── Mobile responsive ────────────────────────────────── */
+    @media (max-width: 480px) {
+      .page { padding: 14px 10px 80px; gap: 12px; }
+      .card { padding: 14px; }
+      .kpi-grid { grid-template-columns: 1fr 1fr !important; }
+      .topbar h1 { font-size: .88rem; }
+      .topbar p  { font-size: .62rem; }
+    }
+    @media (max-width: 360px) {
+      .actions-row { grid-template-columns: 1fr 1fr !important; }
+    }
+  
+[data-theme="dark"] {
+  --bg:        #0f1117;
+  --white:     #1a1d27;
+  --surface:   #1e2130;
+  --border:    #2d3148;
+  --accent:    #818cf8;
+  --accent-lt: #1e2040;
+  --accent-md: #4338ca;
+  --green:     #34d399;
+  --green-lt:  #064e3b;
+  --red:       #f87171;
+  --red-lt:    #450a0a;
+  --yellow:    #fbbf24;
+  --yellow-lt: #451a03;
+  --purple:    #a78bfa;
+  --purple-lt: #2e1065;
+  --orange:    #fb923c;
+  --orange-lt: #431407;
+  --text:      #e5e7eb;
+  --text-md:   #d1d5db;
+  --muted:     #9ca3af;
+  --muted-lt:  #6b7280;
+  --shadow:    0 4px 24px rgba(0,0,0,.35);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.25);
+}
+
+  </style>
+<script>
+(function(){
+  var t = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
 </head>
-
 <body>
 
-    <h2>{{ trip.name }} - Dashboard</h2>
+<!-- ── Sticky top bar ──────────────────────────────────────── -->
+<div class="topbar">
+  <a href="{% url 'trip_list' %}" class="topbar-back">
+    <i class="ti ti-arrow-left"></i>
+  </a>
+  <div class="topbar-title">
+    <h1>{{ trip.name }}</h1>
+    <p>{{ trip.destination }} · {{ trip.start_date }} → {{ trip.end_date }}</p>
+  </div>
+  <a href="{% url 'add_expense' trip.id %}" class="topbar-action">
+    <i class="ti ti-plus"></i> Add
+  </a>
+</div>
 
-    <div class="section">
-        <h3>Trip Overview</h3>
-        <p><strong>Destination:</strong> {{ trip.destination }}</p>
-        <p><strong>Dates:</strong> {{ trip.start_date }} to {{ trip.end_date }}</p>
-        <p><strong>Total Budget:</strong> ₹{{ trip.budget }}</p>
-        <p><strong>Total Expenses:</strong> ₹{{ total_expenses }}</p>
-        <p><strong>Remaining Budget:</strong> ₹{{ remaining_budget }}</p>
-        <p><strong>Participants:</strong> {{ participants|join:", " }}</p>
-    </div>
-    {% if trip.id == 7 %}
-    <div class="photo_gallery">
-        <h3>Trip photos🌄</h3>
-        <div class="gallery-thumbnail"></div>
-        <div class="gallery-overlay"></div>
-        <a href="{% url 'trip_photos_videos' trip.id %}" class="card-link"></a>
-    </div>
-    {% endif %}
+<div class="page">
 
-    <div class="section">
-        <h3>Expenses</h3>
-        <div class="card-container">
-            {% for exp in expenses %}
-            <div class="card">
-                <h4>{{ exp.title }}</h4>
-                <p><strong>Amount:</strong> ₹{{ exp.amount }}</p>
-                <p><strong>Category:</strong> {{ exp.category }}</p>
-                {% if exp.custom_category %}
-                <p><strong>Custom:</strong> {{ exp.custom_category }}</p>
-                {% endif %}
-                <p><strong>Payment Mode:</strong> {{ exp.payment_mode }}</p>
-                {% if exp.participant %}
-                <p><strong>Paid by:</strong> {{ exp.participant }}</p>
-                {% endif %}
-                {% if exp.description %}
-                <p><strong>Description:</strong> {{ exp.description }}</p>
-                {% endif %}
-            </div>
-            {% empty %}
-            <p>No expenses added yet.</p>
-            {% endfor %}
+  <!-- ── Budget Alert ─────────────────────────────────────── -->
+  {% if budget_alert %}
+  {% with a=budget_alert %}
+  <div class="budget-alert-card level-{{ a.level }}">
+    <div class="alert-icon-wrap">
+      {% if a.level == 'danger' %}🚨{% elif a.level == 'warning' %}⚠️{% else %}📊{% endif %}
+    </div>
+    <div class="alert-body">
+      <div class="alert-title">
+        {% if a.pct >= 100 %}Budget Reached
+        {% elif a.pct >= 90 %}Critical — Almost Out
+        {% elif a.pct >= 80 %}Warning — Running Low
+        {% else %}Heads Up{% endif %}
+      </div>
+      <div class="alert-sub">
+        You've used <strong>{{ a.pct }}%</strong> of your trip budget.
+        {% if remaining_budget %}₹{{ remaining_budget|floatformat:0 }} remaining.{% endif %}
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:{% if a.pct > 100 %}100{% else %}{{ a.pct|floatformat:0 }}{% endif %}%"></div>
+      </div>
+      <div class="bar-labels">
+        <span>₹{{ total_expenses|floatformat:0 }} spent</span>
+        <span>{{ a.pct }}% used</span>
+        <span>₹{{ trip.budget|floatformat:0 }} budget</span>
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+  {% endif %}
+
+  <!-- ── KPI Cards ──────────────────────────────────────────── -->
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="label">Budget</div>
+      <div class="value accent">₹{{ trip.budget }}</div>
+      <div class="sub">Total trip budget</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Spent</div>
+      <div class="value red">₹{{ total_expenses }}</div>
+      <div class="sub">{{ budget_pct|floatformat:1 }}% used</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Remaining</div>
+      <div class="value {% if remaining_budget < 0 %}red{% else %}green{% endif %}">₹{{ remaining_budget }}</div>
+      <div class="sub">Budget left</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Per Person</div>
+      <div class="value">{% if cost_per_person %}₹{{ cost_per_person }}{% else %}—{% endif %}</div>
+      <div class="sub">{{ participants|length }} member{{ participants|length|pluralize }}</div>
+    </div>
+  </div>
+
+  <!-- ── Budget progress bar ────────────────────────────────── -->
+  {% if trip.budget and trip.budget > 0 %}
+  <div class="card" style="padding:16px 20px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+      <span style="font-size:.82rem;font-weight:700;color:var(--text-md);">Budget Usage</span>
+      <span style="font-size:.78rem;font-weight:700;color:var(--muted);">{{ budget_pct|floatformat:1 }}%</span>
+    </div>
+    <div class="budget-bar-track">
+      <div class="budget-bar-fill
+        {% if budget_pct >= 90 %}bfill-danger
+        {% elif budget_pct >= 80 %}bfill-warning
+        {% elif budget_pct >= 70 %}bfill-caution
+        {% else %}bfill-safe{% endif %}"
+        style="width:{% if budget_pct > 100 %}100{% else %}{{ budget_pct|floatformat:0 }}{% endif %}%">
+      </div>
+    </div>
+    <div class="budget-labels">
+      <span>₹0</span>
+      <span>₹{{ trip.budget }}</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Quick Actions ─────────────────────────────────────── -->
+  <div class="actions-row">
+    <a href="{% url 'add_expense' trip.id %}" class="action-btn primary">
+      <i class="ti ti-plus"></i> Add Expense
+    </a>
+    <a href="{% url 'view_expenses' trip.id %}" class="action-btn">
+      <i class="ti ti-list"></i> All Expenses
+    </a>
+    <a href="{% url 'split_bill' trip.id %}" class="action-btn">
+      <i class="ti ti-arrows-split"></i> Split Bill
+    </a>
+    <a href="{% url 'settlement' trip.id %}" class="action-btn">
+      <i class="ti ti-cash"></i> Settlement
+    </a>
+    <a href="{% url 'edit_trip' trip.id %}" class="action-btn">
+      <i class="ti ti-edit"></i> Edit Trip
+    </a>
+<a href="{% url 'export_expenses_pdf' trip.id %}" class="action-btn">
+      <i class="ti ti-file-type-pdf"></i> Export PDF
+    </a>
+    <a href="{% url 'spending_heatmap' trip.id %}" class="action-btn">
+      <i class="ti ti-chart-dots"></i> Analytics
+    </a>
+  </div>
+
+  <!-- ── Top Spending Category ─────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:var(--accent-lt);">🏷️</div>
+      <div>
+        <div class="card-title">Spending by Category</div>
+        {% if top_category %}
+        <div class="card-sub">Top: <strong>{{ top_category.0 }}</strong></div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if categories_ranked %}
+      {% for cat, amt in categories_ranked %}
+      <div class="cat-row">
+        <div class="cat-meta">
+          <span class="cat-name">
+            {% if cat == 'Accommodation' %}🏨
+            {% elif cat == 'Transport' %}🚗
+            {% elif cat == 'Food & Dining' %}🍽️
+            {% elif cat == 'Drinks' %}🍻
+            {% elif cat == 'Shopping & Souvenirs' %}🛍️
+            {% elif cat == 'Emergency / Medical' %}🏥
+            {% else %}💰{% endif %}
+            {{ cat }}
+            {% if forloop.first %}<span class="cat-top-badge">⭐ Top</span>{% endif %}
+          </span>
+          <span class="cat-amt">₹{{ amt|floatformat:0 }}</span>
         </div>
+        <div class="cat-track">
+          <div class="cat-fill cc-{{ forloop.counter0 }}"
+               data-amt="{{ amt }}"
+               data-total="{{ total_expenses }}"
+               style="width:0%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p style="color:var(--muted-lt);font-size:.85rem;text-align:center;padding:16px 0;">No expenses yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- ── Top Spending Member ────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:var(--yellow-lt);">👑</div>
+      <div>
+        <div class="card-title">Member Ranking</div>
+        <div class="card-sub">Who paid the most</div>
+      </div>
+    </div>
+    {% if members_ranked %}
+      {% for name, amt in members_ranked %}
+      <div class="member-row">
+        <div class="member-rank {% if forloop.counter == 1 %}r1{% elif forloop.counter == 2 %}r2{% elif forloop.counter == 3 %}r3{% else %}rn{% endif %}">
+          {% if forloop.counter == 1 %}🥇
+          {% elif forloop.counter == 2 %}🥈
+          {% elif forloop.counter == 3 %}🥉
+          {% else %}{{ forloop.counter }}{% endif %}
+        </div>
+        <span class="member-name">{{ name }}</span>
+        <div class="member-bar-wrap">
+          <div class="member-bar" data-amt="{{ amt }}" data-total="{{ total_expenses }}" style="width:0%"></div>
+        </div>
+        <span class="member-amt">₹{{ amt|floatformat:0 }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p style="color:var(--muted-lt);font-size:.85rem;text-align:center;padding:16px 0;">No expense data yet.</p>
+    {% endif %}
+  </div>
+  <!-- ── Smart Suggestions ─────────────────────────────────── -->
+  {% if smart_suggestions %}
+  <div class="suggestions-card">
+    <div class="suggestions-header">
+      <div class="sug-icon">💡</div>
+      <div>
+        <div class="sug-title">Smart Suggestions</div>
+        <div class="sug-sub">Based on your spending patterns</div>
+      </div>
+      <button class="sug-toggle" onclick="toggleSuggestions(this)">Hide ▲</button>
+    </div>
+    <div class="sug-grid" id="sug-grid">
+      {% for tip in smart_suggestions %}
+      <div class="sug-item">
+        <span class="sug-emoji">
+          {% if '💸' in tip %}💸{% elif '👤' in tip %}👤{% elif '🔁' in tip %}🔁
+          {% elif '📅' in tip %}📅{% elif '🏆' in tip %}🏆{% else %}✨{% endif %}
+        </span>
+        <span class="sug-text">{{ tip|slice:"2:" }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Recent Expenses ───────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:var(--surface);">🧾</div>
+      <div>
+        <div class="card-title">Recent Expenses</div>
+        <div class="card-sub">Last {{ expenses|length }} entries</div>
+      </div>
+      <a href="{% url 'view_expenses' trip.id %}" class="card-header-action">View all →</a>
     </div>
 
-    <div style="text-align:center;">
-        <a href="{% url 'add_expense' trip.id %}" class="btn">Add Expense</a>
-        <a href="{% url 'edit_trip' trip.id %}" class="btn">Edit Trip</a>
-        <a href="{% url 'trip_list' %}" class="btn">Back to Trip List</a>
+    {% for exp in expenses|slice:":8" %}
+    <div class="exp-row">
+      <div class="exp-icon
+        {% if exp.category == 'Accommodation' %}cat-accommodation
+        {% elif exp.category == 'Transport' %}cat-transport
+        {% elif exp.category == 'Food & Dining' %}cat-food
+        {% elif exp.category == 'Drinks' %}cat-drinks
+        {% elif exp.category == 'Shopping & Souvenirs' %}cat-shopping
+        {% elif exp.category == 'Emergency / Medical' %}cat-emergency
+        {% else %}cat-other{% endif %}">
+        {% if exp.category == 'Accommodation' %}🏨
+        {% elif exp.category == 'Transport' %}🚗
+        {% elif exp.category == 'Food & Dining' %}🍽️
+        {% elif exp.category == 'Drinks' %}🍻
+        {% elif exp.category == 'Shopping & Souvenirs' %}🛍️
+        {% elif exp.category == 'Emergency / Medical' %}🏥
+        {% else %}💰{% endif %}
+      </div>
+      <div class="exp-info">
+        <div class="exp-title">{{ exp.title }}</div>
+        <div class="exp-meta">
+          <span class="meta-pill">{{ exp.category }}</span>
+          <span style="color:var(--muted-lt);font-size:.71rem;margin-left:4px;">{{ exp.paid_by }} · {{ exp.created_at|date:"d M" }}</span>
+        </div>
+      </div>
+      <div class="exp-amount">₹{{ exp.amount }}</div>
     </div>
+    {% empty %}
+    <p style="color:var(--muted-lt);font-size:.85rem;text-align:center;padding:20px 0;">
+      No expenses yet. <a href="{% url 'add_expense' trip.id %}" style="color:var(--accent);font-weight:600;">Add your first →</a>
+    </p>
+    {% endfor %}
+  </div>
 
-    <!-- 👇 New Cost per Person Section -->
-    <div class="cost-section">
-        <h3>Cost Per Person</h3>
-        <p>₹{{ cost_per_person }}</p>
+  <!-- ── Participants ───────────────────────────────────────── -->
+  {% if participants %}
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:var(--surface);">👥</div>
+      <div>
+        <div class="card-title">Participants</div>
+        <div class="card-sub">{{ participants|length }} on this trip</div>
+      </div>
     </div>
+    <div class="participant-chips">
+      {% for p in participants %}
+      <div class="p-chip"><i class="ti ti-user" style="font-size:.85rem;"></i> {{ p }}</div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div><!-- /page -->
+
+<!-- ── Hidden JSON data for JS ───────────────────────────────── -->
+<script id="heatmap-data" type="application/json">{{ heatmap_data|safe }}</script>
+
+<script>
+  // ── Heatmap ────────────────────────────────────────────────
+  (function () {
+    const raw  = JSON.parse(document.getElementById('heatmap-data').textContent);
+    const grid = document.getElementById('heatmapGrid');
+    const max  = Math.max(...raw.map(d => d.amount), 1);
+
+    const palette = ['#f0f4f8','#fecaca','#f87171','#ef4444','#b91c1c'];
+
+    raw.forEach(day => {
+      const cell = document.createElement('div');
+      cell.className = 'hmap-cell';
+
+      if (day.amount === 0) {
+        cell.style.background = palette[0];
+        cell.style.border = '1px solid #e5e7eb';
+      } else {
+        const idx = Math.min(Math.ceil((day.amount / max) * 4), 4);
+        cell.style.background = palette[idx];
+      }
+
+      const d = day.date.slice(5);   // MM-DD
+      cell.innerHTML = `<span class="tip">${d}<br>₹${day.amount.toFixed(0)}</span>`;
+      grid.appendChild(cell);
+    });
+  })();
+
+  // ── Category bar widths ────────────────────────────────────
+  document.querySelectorAll('.cat-fill').forEach(bar => {
+    const pct = parseFloat(bar.dataset.total) > 0
+      ? (parseFloat(bar.dataset.amt) / parseFloat(bar.dataset.total)) * 100
+      : 0;
+    requestAnimationFrame(() => bar.style.width = pct + '%');
+  });
+
+  // ── Member bar widths ──────────────────────────────────────
+  document.querySelectorAll('.member-bar').forEach(bar => {
+    const pct = parseFloat(bar.dataset.total) > 0
+      ? (parseFloat(bar.dataset.amt) / parseFloat(bar.dataset.total)) * 100
+      : 0;
+    requestAnimationFrame(() => bar.style.width = pct + '%');
+  });
+
+  // ── Smart Suggestions toggle ───────────────────────────────
+  function toggleSuggestions(btn) {
+    const grid = document.getElementById('sug-grid');
+    const collapsed = grid.classList.toggle('collapsed');
+    btn.textContent = collapsed ? 'Show ▼' : 'Hide ▲';
+  }
+</script>
 
 </body>
-
 </html>

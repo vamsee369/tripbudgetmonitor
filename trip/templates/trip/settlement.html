@@ -1,0 +1,519 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Settlement – {{ trip.name }}</title>
+  <link rel="manifest" href="{% static 'manifest.json' %}"/>
+  <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon"/>
+  <meta name="theme-color" content="#6366f1"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f0f4f8;
+      --white:     #ffffff;
+      --surface:   #f8f9ff;
+      --border:    #e5e7eb;
+      --accent:    #6366f1;
+      --accent-lt: #eef2ff;
+      --accent-md: #c7d2fe;
+      --green:     #10b981;
+      --green-lt:  #d1fae5;
+      --red:       #ef4444;
+      --red-lt:    #fee2e2;
+      --yellow:    #f59e0b;
+      --yellow-lt: #fef3c7;
+      --purple:    #7c3aed;
+      --purple-lt: #ede9fe;
+      --text:      #1f2937;
+      --text-md:   #374151;
+      --muted:     #6b7280;
+      --muted-lt:  #9ca3af;
+      --radius:    20px;
+      --radius-sm: 12px;
+      --shadow:    0 4px 24px rgba(0,0,0,.07);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.05);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Topbar ── */
+    .topbar {
+      background: var(--white);
+      border-bottom: 1.5px solid var(--border);
+      padding: 14px 16px;
+      position: sticky;
+      top: 0; z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .topbar-brand { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+    .brand-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem;
+      box-shadow: 0 4px 12px rgba(99,102,241,.35);
+      flex-shrink: 0;
+    }
+    .brand-text .bname { font-size: .92rem; font-weight: 700; color: var(--text); line-height: 1.1; }
+    .brand-text .btag  { font-size: .68rem; color: var(--muted); font-weight: 500; }
+    .back-link {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 6px 12px;
+      font-size: .78rem; font-weight: 600; color: var(--text-md);
+      text-decoration: none; flex-shrink: 0; transition: background .15s;
+    }
+    .back-link:hover { background: var(--accent-lt); color: var(--accent); border-color: var(--accent-md); }
+
+    /* ── Page ── */
+    .page {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 24px 16px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── Hero ── */
+    .hero-card {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%);
+      border-radius: var(--radius);
+      padding: 24px 22px;
+      display: flex; align-items: center; gap: 16px;
+      box-shadow: 0 8px 32px rgba(99,102,241,.35);
+      position: relative; overflow: hidden;
+    }
+    .hero-card::before {
+      content: ''; position: absolute;
+      top: -40px; right: -40px;
+      width: 150px; height: 150px;
+      background: rgba(255,255,255,.08); border-radius: 50%;
+    }
+    .hero-emoji { font-size: 2.4rem; flex-shrink: 0; z-index: 1; }
+    .hero-text { z-index: 1; }
+    .hero-text h1 { font-size: 1.2rem; font-weight: 800; color: #fff; line-height: 1.2; margin-bottom: 3px; }
+    .hero-text p  { font-size: .78rem; color: rgba(255,255,255,.72); }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: .72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .8px;
+      color: var(--muted); padding: 4px 0 2px;
+    }
+
+    /* ── White card ── */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .card-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 16px;
+    }
+    .card-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; flex-shrink: 0;
+    }
+    .card-title { font-size: .92rem; font-weight: 700; color: var(--text); }
+    .card-sub   { font-size: .72rem; color: var(--muted); margin-top: 1px; }
+
+    /* ── Transaction rows ── */
+    .txn {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      font-size: .88rem;
+      transition: opacity .2s;
+    }
+    .txn:last-child { margin-bottom: 0; }
+    .txn .from {
+      font-weight: 700; color: var(--red);
+      display: flex; align-items: center; gap: 6px; flex: 1;
+    }
+    .txn .arrow { color: var(--muted-lt); font-size: 1rem; flex-shrink: 0; }
+    .txn .to {
+      font-weight: 700; color: var(--green);
+      display: flex; align-items: center; gap: 6px; flex: 1;
+    }
+    .txn .amt {
+      font-weight: 800; font-size: .95rem;
+      color: var(--accent); min-width: 72px; text-align: right;
+    }
+    .mark-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--green-lt);
+      border: 1.5px solid #6ee7b7;
+      border-radius: 8px; padding: 5px 10px;
+      cursor: pointer; font-size: .73rem;
+      color: #065f46; font-weight: 700;
+      transition: background .15s; flex-shrink: 0;
+      font-family: inherit;
+    }
+    .mark-btn:hover { background: #a7f3d0; }
+    .txn.settled { opacity: .38; }
+    .txn.settled .txn-content { text-decoration: line-through; }
+
+    /* ── Balance table ── */
+    .balance-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .balance-table th {
+      background: var(--surface);
+      padding: 9px 12px; text-align: left;
+      border-bottom: 2px solid var(--border);
+      font-size: .72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .4px;
+      color: var(--muted);
+    }
+    .balance-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    .balance-table tr:last-child td { border-bottom: none; }
+    .positive { color: var(--green); font-weight: 700; }
+    .negative { color: var(--red); font-weight: 700; }
+    .neutral  { color: var(--muted-lt); }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: .72rem; font-weight: 700;
+    }
+    .pill-green  { background: var(--green-lt); color: #065f46; }
+    .pill-red    { background: var(--red-lt); color: #991b1b; }
+    .pill-neutral{ background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+
+    /* ── Split accordion ── */
+    .split-row {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+      overflow: hidden;
+      background: var(--white);
+    }
+    .split-row:last-child { margin-bottom: 0; }
+    .split-header {
+      padding: 13px 16px;
+      background: var(--surface);
+      cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+      transition: background .15s;
+    }
+    .split-header:hover { background: var(--accent-lt); }
+    .split-header-left { display: flex; flex-direction: column; gap: 2px; }
+    .split-title { font-size: .88rem; font-weight: 700; color: var(--text); }
+    .split-meta  { font-size: .72rem; color: var(--muted); }
+    .split-caret { color: var(--muted-lt); font-size: 1rem; transition: transform .2s; }
+    .split-header.open .split-caret { transform: rotate(180deg); }
+    .split-body {
+      display: none;
+      padding: 12px 16px;
+      border-top: 1.5px solid var(--border);
+      background: var(--white);
+    }
+    .split-body.open { display: block; }
+    .split-entry {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: .83rem;
+    }
+    .split-entry:last-child { border-bottom: none; }
+    .split-entry .person { color: var(--text-md); font-weight: 500; }
+    .split-entry .amount { color: var(--accent); font-weight: 700; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+    .empty-txt  { font-size: .88rem; font-weight: 600; color: var(--text-md); }
+    .empty-sub  { font-size: .78rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── CTA row ── */
+    .cta-row {
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      color: #fff; border: none; border-radius: var(--radius-sm);
+      font-size: .88rem; font-weight: 700;
+      cursor: pointer; text-decoration: none;
+      box-shadow: 0 4px 14px rgba(99,102,241,.3);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(99,102,241,.38); }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 12px 20px;
+      background: var(--white); color: var(--text-md);
+      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      font-size: .88rem; font-weight: 600;
+      text-decoration: none; transition: all .15s;
+    }
+    .btn-secondary:hover { background: var(--accent-lt); color: var(--accent); border-color: var(--accent-md); }
+
+    /* ── Mobile responsive ── */
+    @media (max-width: 480px) {
+      .page { padding: 12px 10px 80px; }
+      .card { padding: 16px 14px; }
+      .topbar { padding: 10px 12px; }
+      .settle-row { flex-direction: column; gap: 8px; align-items: flex-start; }
+    }
+  
+[data-theme="dark"] {
+  --bg:        #0f1117;
+  --white:     #1a1d27;
+  --surface:   #1e2130;
+  --border:    #2d3148;
+  --accent:    #818cf8;
+  --accent-lt: #1e2040;
+  --accent-md: #4338ca;
+  --green:     #34d399;
+  --green-lt:  #064e3b;
+  --red:       #f87171;
+  --red-lt:    #450a0a;
+  --yellow:    #fbbf24;
+  --yellow-lt: #451a03;
+  --purple:    #a78bfa;
+  --purple-lt: #2e1065;
+  --orange:    #fb923c;
+  --orange-lt: #431407;
+  --text:      #e5e7eb;
+  --text-md:   #d1d5db;
+  --muted:     #9ca3af;
+  --muted-lt:  #6b7280;
+  --shadow:    0 4px 24px rgba(0,0,0,.35);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.25);
+}
+
+  </style>
+<script>
+(function(){
+  var t = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="brand-icon">✈️</div>
+    <div class="brand-text">
+      <div class="bname">Trip Budget Monitor</div>
+      <div class="btag">Smart travel spending tracker</div>
+    </div>
+  </div>
+  <a href="{% url 'trip_dashboard' trip.id %}" class="back-link">
+    <i class="ti ti-arrow-left" style="font-size:.85rem;"></i> Dashboard
+  </a>
+</div>
+
+<div class="page">
+
+  <!-- Hero -->
+  <div class="hero-card">
+    <span class="hero-emoji">💳</span>
+    <div class="hero-text">
+      <h1>Settlement</h1>
+      <p>{{ trip.name }} · Splitwise-style minimal transactions</p>
+    </div>
+  </div>
+
+  <!-- Who Owes Whom -->
+  <div class="section-label">Who Owes Whom</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:var(--red-lt);">💸</div>
+      <div>
+        <div class="card-title">Payment Summary</div>
+        <div class="card-sub">Simplified minimum transactions</div>
+      </div>
+    </div>
+
+    {% if transactions %}
+      {% for t in transactions %}
+      <div class="txn" id="txn-{{ forloop.counter }}">
+        <div class="txn-content" style="display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap;">
+          <span class="from"><i class="ti ti-user" style="font-size:.85rem;"></i>{{ t.from_person }}</span>
+          <span class="arrow"><i class="ti ti-arrow-right"></i></span>
+          <span class="to"><i class="ti ti-user" style="font-size:.85rem;"></i>{{ t.to_person }}</span>
+          <span class="amt">₹{{ t.amount }}</span>
+        </div>
+        <form method="post" action="{% url 'mark_settlement_paid' trip.id %}" style="margin:0;">
+          {% csrf_token %}
+          <input type="hidden" name="from_person" value="{{ t.from_person }}">
+          <input type="hidden" name="to_person" value="{{ t.to_person }}">
+          <input type="hidden" name="amount" value="{{ t.amount }}">
+          <button type="submit" class="mark-btn">
+            <i class="ti ti-check" style="font-size:.8rem;"></i> Mark Paid
+          </button>
+        </form>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">🎉</div>
+        <div class="empty-txt">All settled up!</div>
+        <div class="empty-sub">No transactions needed — everyone is even.</div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Recorded Payments -->
+  {% if payments %}
+  <div class="section-label">Recorded Payments</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:var(--green-lt);">✅</div>
+      <div>
+        <div class="card-title">Payment History</div>
+        <div class="card-sub">These have already been marked paid — undo if that was a mistake</div>
+      </div>
+    </div>
+    {% for p in payments %}
+    <div class="txn settled">
+      <div class="txn-content" style="display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap;">
+        <span class="from"><i class="ti ti-user" style="font-size:.85rem;"></i>{{ p.from_person }}</span>
+        <span class="arrow"><i class="ti ti-arrow-right"></i></span>
+        <span class="to"><i class="ti ti-user" style="font-size:.85rem;"></i>{{ p.to_person }}</span>
+        <span class="amt">₹{{ p.amount }}</span>
+      </div>
+      <form method="post" action="{% url 'unmark_settlement_paid' trip.id p.id %}" style="margin:0;">
+        {% csrf_token %}
+        <button type="submit" class="mark-btn" style="background:var(--red-lt);border-color:#fca5a5;color:#991b1b;">
+          <i class="ti ti-rotate-clockwise" style="font-size:.8rem;"></i> Undo
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Net Balance -->
+  {% if net %}
+  <div class="section-label">Net Balance per Person</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:var(--accent-lt);">📊</div>
+      <div>
+        <div class="card-title">Balance Sheet</div>
+        <div class="card-sub">Who gets money back, who owes</div>
+      </div>
+    </div>
+    <table class="balance-table">
+      <thead>
+        <tr>
+          <th>Person</th>
+          <th>Net</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for person, amount in net.items %}
+        <tr>
+          <td><strong>{{ person }}</strong></td>
+          <td>
+            {% if amount > 0 %}
+              <span class="positive">+₹{{ amount }}</span>
+            {% elif amount < 0 %}
+              <span class="negative">−₹{{ amount|cut:"-" }}</span>
+            {% else %}
+              <span class="neutral">₹0</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if amount > 0 %}
+              <span class="status-pill pill-green"><i class="ti ti-arrow-down" style="font-size:.75rem;"></i> Gets ₹{{ amount }}</span>
+            {% elif amount < 0 %}
+              <span class="status-pill pill-red"><i class="ti ti-arrow-up" style="font-size:.75rem;"></i> Owes ₹{{ amount|cut:"-" }}</span>
+            {% else %}
+              <span class="status-pill pill-neutral">Settled</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- Split Details -->
+  {% if splits %}
+  <div class="section-label">All Splits for This Trip</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon" style="background:var(--purple-lt);">📋</div>
+      <div>
+        <div class="card-title">Split Breakdown</div>
+        <div class="card-sub">Tap any row to see details</div>
+      </div>
+    </div>
+    {% for s in splits %}
+    <div class="split-row">
+      <div class="split-header" id="sh-{{ s.id }}" onclick="toggleSplit({{ s.id }})">
+        <div class="split-header-left">
+          <span class="split-title">{{ s.title }}</span>
+          <span class="split-meta">₹{{ s.total_amount }} · {{ s.get_split_type_display }} · paid by {{ s.paid_by }}</span>
+        </div>
+        <i class="ti ti-chevron-down split-caret"></i>
+      </div>
+      <div class="split-body" id="split-{{ s.id }}">
+        {% for entry in s.entries.all %}
+        <div class="split-entry">
+          <span class="person">{{ entry.person }}</span>
+          <span class="amount">
+            ₹{{ entry.amount_owed }}
+            {% if entry.percentage %}<span style="color:var(--muted);font-weight:400;font-size:.75rem;"> ({{ entry.percentage }}%)</span>{% endif %}
+            {% if entry.shares %}<span style="color:var(--muted);font-weight:400;font-size:.75rem;"> ({{ entry.shares }} share{{ entry.shares|pluralize }})</span>{% endif %}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Action buttons -->
+  <div class="cta-row">
+    <a href="{% url 'split_bill' trip.id %}" class="btn-primary">
+      <i class="ti ti-plus"></i> New Split
+    </a>
+    <a href="{% url 'trip_dashboard' trip.id %}" class="btn-secondary">
+      <i class="ti ti-layout-dashboard"></i> Dashboard
+    </a>
+  </div>
+
+</div>
+
+<script>
+function toggleSplit(id) {
+  const body = document.getElementById('split-' + id);
+  const header = document.getElementById('sh-' + id);
+  body.classList.toggle('open');
+  header.classList.toggle('open');
+}
+</script>
+</body>
+</html>
