@@ -1,4 +1,4 @@
-const CACHE_NAME = "tripbudget-v6";
+const CACHE_NAME = "tripbudget-v7";
 
 // Only pre-cache files guaranteed to return 200 — no Django views here
 const STATIC_ASSETS = [
@@ -11,8 +11,19 @@ const STATIC_ASSETS = [
 self.addEventListener("install", (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(async (cache) => {
-            // cache static assets
-            await cache.addAll(STATIC_ASSETS);
+            // cache static assets one-by-one so a single 404 doesn't
+            // fail the whole install step (cache.addAll is all-or-nothing)
+            await Promise.all(
+                STATIC_ASSETS.map(async (url) => {
+                    try {
+                        const res = await fetch(url, { cache: "no-cache" });
+                        if (res.ok) await cache.put(url, res);
+                        else console.warn("SW precache skipped (bad status):", url, res.status);
+                    } catch (e) {
+                        console.warn("SW precache skipped (fetch failed):", url, e);
+                    }
+                })
+            );
 
             // cache offline page separately so one failure doesn't break everything
             try {
