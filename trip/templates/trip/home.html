@@ -804,10 +804,15 @@
     <a href="{% url 'trip_list' %}" class="quick-btn">
       <i class="ti ti-list-check"></i> Completed
     </a>
-    {% if ongoing_trip %}
+    {% if ongoing_trips|length == 1 %}
     <a href="{% url 'add_expense' ongoing_trip.id %}" class="quick-btn" style="border-color:var(--green);background:var(--green-lt);">
       <i class="ti ti-receipt" style="color:var(--green);"></i>
       <span style="color:#065f46;">Add Expense</span>
+    </a>
+    {% elif ongoing_trips %}
+    <a href="{% url 'trip_history' %}" class="quick-btn" style="border-color:var(--green);background:var(--green-lt);">
+      <i class="ti ti-receipt" style="color:var(--green);"></i>
+      <span style="color:#065f46;">{{ ongoing_trips|length }} Ongoing</span>
     </a>
     {% endif %}
   </div>

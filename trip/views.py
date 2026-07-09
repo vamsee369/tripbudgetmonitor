@@ -68,14 +68,18 @@ def is_trip_owner(trip, user):
 
 def home(request):
     ongoing_trip = None
+    ongoing_trips = []
     if request.user.is_authenticated:
-        ongoing_trip = (
+        ongoing_trips = (
             visible_trips_for(request.user)
             .filter(end_date__gte=date.today())
             .order_by('-created_at')
-            .first()
         )
-    return render(request, 'trip/home.html', {'ongoing_trip': ongoing_trip})
+        ongoing_trip = ongoing_trips.first()
+    return render(request, 'trip/home.html', {
+        'ongoing_trip': ongoing_trip,
+        'ongoing_trips': ongoing_trips,
+    })
 
 
 
