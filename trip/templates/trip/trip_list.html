@@ -181,7 +181,7 @@
   {% endif %}
 
   {% if trips %}
-    {% for trip in trips reversed %}
+    {% for trip in trips %}
     <div class="trip-card" id="tc-{{ trip.id }}"
          data-name="{{ trip.name|lower }}"
          data-dest="{{ trip.destination|lower }}">
