@@ -120,13 +120,14 @@ USE_I18N = True
 USE_TZ = True
 
 # ---------------------------
-# Static & Media Storage (Django 4.2+ style)
+# Static & Media Storage
 # ---------------------------
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 
+# Django 4.2+ style (used by Django itself)
 STORAGES = {
     "default": {
         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
@@ -135,6 +136,10 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
+
+# Legacy style (required by django-cloudinary-storage 0.3.0 compatibility check)
+DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
 
 # ---------------------------
 # Default primary key
