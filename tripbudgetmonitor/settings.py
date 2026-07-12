@@ -129,7 +129,9 @@ MEDIA_URL = "/media/"
 from whitenoise.storage import CompressedManifestStaticFilesStorage
 
 class WhiteNoiseStaticFilesStorage(CompressedManifestStaticFilesStorage):
-    manifest_strict = False
+    def post_process(self, paths, **kwargs):
+        paths = {k: v for k, v in paths.items() if not k.endswith('.map')}
+        yield from super().post_process(paths, **kwargs)
 STORAGES = {
     "default": {
         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
