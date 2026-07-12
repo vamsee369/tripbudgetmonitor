@@ -45,7 +45,6 @@
       min-height: 100vh;
     }
 
-    /* ── Topbar ── */
     .topbar {
       background: var(--white);
       border-bottom: 1.5px solid var(--border);
@@ -74,7 +73,6 @@
     }
     .back-link:hover { background: var(--accent-lt); color: var(--accent); border-color: var(--accent-md); }
 
-    /* ── Page ── */
     .page {
       max-width: 700px;
       margin: 0 auto;
@@ -84,7 +82,6 @@
       gap: 16px;
     }
 
-    /* ── Hero ── */
     .hero-card {
       background: linear-gradient(135deg, var(--green) 0%, #059669 100%);
       border-radius: var(--radius);
@@ -104,14 +101,12 @@
     .hero-text h1 { font-size: 1.2rem; font-weight: 800; color: #fff; line-height: 1.2; margin-bottom: 3px; }
     .hero-text p  { font-size: .78rem; color: rgba(255,255,255,.78); }
 
-    /* ── Section label ── */
     .section-label {
       font-size: .72rem; font-weight: 700;
       text-transform: uppercase; letter-spacing: .8px;
       color: var(--muted); padding: 4px 0 2px;
     }
 
-    /* ── White card ── */
     .card {
       background: var(--white);
       border-radius: var(--radius);
@@ -131,19 +126,16 @@
     .card-title { font-size: .92rem; font-weight: 700; color: var(--text); }
     .card-sub   { font-size: .72rem; color: var(--muted); margin-top: 1px; }
 
-    /* ── Error banner ── */
     .error-banner {
       display: flex; align-items: center; gap: 10px;
       background: var(--red-lt); border: 1.5px solid #fca5a5;
       border-radius: var(--radius-sm);
       padding: 12px 14px;
       font-size: .85rem; font-weight: 600; color: #991b1b;
-      margin-bottom: 4px;
+      margin-bottom: 14px;
     }
 
-    /* ── Form fields ── */
     .field-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-    .field-group:last-of-type { margin-bottom: 0; }
     .field-group label {
       font-size: .75rem; font-weight: 700; color: var(--muted);
       text-transform: uppercase; letter-spacing: .5px;
@@ -168,7 +160,6 @@
       background: var(--white);
     }
 
-    /* ── Split type pills ── */
     .split-options {
       display: flex; gap: 8px; flex-wrap: wrap;
       margin-top: 6px;
@@ -188,44 +179,44 @@
     }
     .split-options label:hover { border-color: var(--accent); background: var(--accent-lt); color: var(--accent); }
     .split-options input[type=radio] { display: none; }
-    .split-options input[type=radio]:checked + span {
-      /* handled via JS class on label */
-    }
     .split-options label.active {
       background: var(--accent-lt);
       border-color: var(--accent);
       color: var(--accent);
     }
 
-    /* ── Hint / sum check ── */
     .hint-text {
       font-size: .75rem; color: var(--muted);
       background: var(--yellow-lt); border: 1px solid #fde68a;
       border-radius: 8px; padding: 8px 12px;
-      display: none;
+      margin-bottom: 8px;
     }
     .sum-check {
       font-size: .82rem; font-weight: 700;
       padding: 6px 12px; border-radius: 8px;
-      display: none;
+      margin-bottom: 8px;
+      display: flex; align-items: center; gap: 6px;
     }
     .sum-check.ok  { background: var(--green-lt); color: #065f46; }
     .sum-check.err { background: var(--red-lt); color: #991b1b; }
 
     /* ── People rows ── */
     .people-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+
     .person-row {
       display: flex; align-items: center; gap: 10px;
       padding: 11px 14px;
       background: var(--surface);
       border: 1.5px solid var(--border);
       border-radius: var(--radius-sm);
-      transition: border-color .15s;
+      transition: border-color .15s, background .15s;
     }
-    .person-row:has(input[type=checkbox]:checked) {
+    .person-row.selected {
       border-color: var(--accent-md);
       background: var(--accent-lt);
     }
+    .person-row.faded { opacity: .45; }
+
     .person-checkbox {
       width: 18px; height: 18px;
       cursor: pointer; accent-color: var(--accent);
@@ -234,6 +225,9 @@
     .person-name {
       flex: 1; font-size: .88rem; font-weight: 600; color: var(--text-md);
     }
+
+    /* IMPORTANT: default is hidden via inline style set by JS on init,
+       NOT by CSS display:none, so JS can reliably toggle it */
     .person-extra {
       width: 110px;
       padding: 7px 10px;
@@ -242,13 +236,12 @@
       font-size: .82rem; color: var(--text);
       background: var(--white);
       outline: none;
-      display: none;
       font-family: inherit;
       transition: border-color .15s;
     }
-    .person-extra:focus { border-color: var(--accent); }
+    .person-extra:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,.12); }
+    .person-extra:disabled { opacity: .35; cursor: not-allowed; background: var(--surface); }
 
-    /* ── Buttons ── */
     .btn-primary {
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
       padding: 13px 22px;
@@ -272,7 +265,6 @@
     }
     .btn-secondary:hover { background: var(--accent-lt); color: var(--accent); border-color: var(--accent-md); }
 
-    /* ── Past splits ── */
     .past-item {
       border: 1.5px solid var(--border);
       border-radius: var(--radius-sm);
@@ -303,52 +295,45 @@
     .past-entry .pe-person { color: var(--text-md); }
     .past-entry .pe-amount { color: var(--accent); font-weight: 700; }
 
-    /* ── Mobile responsive ── */
     @media (max-width: 480px) {
       .page { padding: 12px 10px 80px; }
       .card { padding: 16px 14px; }
       .topbar { padding: 10px 12px; }
-      .topbar h1 { font-size: .9rem; }
-      .member-row { flex-wrap: wrap; gap: 6px; }
     }
-  
-[data-theme="dark"] {
-  --bg:        #0f1117;
-  --white:     #1a1d27;
-  --surface:   #1e2130;
-  --border:    #2d3148;
-  --accent:    #818cf8;
-  --accent-lt: #1e2040;
-  --accent-md: #4338ca;
-  --green:     #34d399;
-  --green-lt:  #064e3b;
-  --red:       #f87171;
-  --red-lt:    #450a0a;
-  --yellow:    #fbbf24;
-  --yellow-lt: #451a03;
-  --purple:    #a78bfa;
-  --purple-lt: #2e1065;
-  --orange:    #fb923c;
-  --orange-lt: #431407;
-  --text:      #e5e7eb;
-  --text-md:   #d1d5db;
-  --muted:     #9ca3af;
-  --muted-lt:  #6b7280;
-  --shadow:    0 4px 24px rgba(0,0,0,.35);
-  --shadow-sm: 0 2px 8px rgba(0,0,0,.25);
-}
 
+    [data-theme="dark"] {
+      --bg:        #0f1117;
+      --white:     #1a1d27;
+      --surface:   #1e2130;
+      --border:    #2d3148;
+      --accent:    #818cf8;
+      --accent-lt: #1e2040;
+      --accent-md: #4338ca;
+      --green:     #34d399;
+      --green-lt:  #064e3b;
+      --red:       #f87171;
+      --red-lt:    #450a0a;
+      --yellow:    #fbbf24;
+      --yellow-lt: #451a03;
+      --purple:    #a78bfa;
+      --purple-lt: #2e1065;
+      --text:      #e5e7eb;
+      --text-md:   #d1d5db;
+      --muted:     #9ca3af;
+      --muted-lt:  #6b7280;
+      --shadow:    0 4px 24px rgba(0,0,0,.35);
+      --shadow-sm: 0 2px 8px rgba(0,0,0,.25);
+    }
   </style>
-<script>
-(function(){
-  var t = localStorage.getItem('theme') || 'light';
-  document.documentElement.setAttribute('data-theme', t);
-})();
-</script>
+  <script>
+    (function(){
+      var t = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
 </head>
 <body>
 
-<!-- Topbar -->
 <div class="topbar">
   <div class="topbar-brand">
     <div class="brand-icon">✈️</div>
@@ -364,7 +349,6 @@
 
 <div class="page">
 
-  <!-- Hero -->
   <div class="hero-card">
     <span class="hero-emoji">⚖️</span>
     <div class="hero-text">
@@ -373,7 +357,6 @@
     </div>
   </div>
 
-  <!-- Create Split form -->
   <div class="section-label">New Split</div>
   <div class="card">
     <div class="card-header">
@@ -391,7 +374,7 @@
     </div>
     {% endif %}
 
-    <form method="POST" id="split-form">
+    <form method="POST" id="split-form" novalidate>
       {% csrf_token %}
 
       <div class="field-group">
@@ -401,7 +384,7 @@
 
       <div class="field-group">
         <label>Total Amount (₹) *</label>
-        <input type="number" name="total_amount" placeholder="e.g. 2400" step="0.01" min="0.01" required>
+        <input type="number" name="total_amount" id="total-amount-input" placeholder="e.g. 2400" step="0.01" min="0.01" required>
       </div>
 
       <div class="field-group">
@@ -416,21 +399,21 @@
 
       <div class="field-group" style="margin-bottom:14px;">
         <label>Split Type *</label>
-        <div class="split-options" id="split-type-options">
+        <div class="split-options">
           <label id="lbl-equal" class="active">
-            <input type="radio" name="split_type" value="equal" checked onchange="setSplitType(this.value)">
+            <input type="radio" name="split_type" value="equal" checked>
             <span>⚖️ Equal</span>
           </label>
           <label id="lbl-percentage">
-            <input type="radio" name="split_type" value="percentage" onchange="setSplitType(this.value)">
+            <input type="radio" name="split_type" value="percentage">
             <span>📊 Percentage</span>
           </label>
           <label id="lbl-exact">
-            <input type="radio" name="split_type" value="exact" onchange="setSplitType(this.value)">
+            <input type="radio" name="split_type" value="exact">
             <span>💰 Exact Amount</span>
           </label>
           <label id="lbl-shares">
-            <input type="radio" name="split_type" value="shares" onchange="setSplitType(this.value)">
+            <input type="radio" name="split_type" value="shares">
             <span>🔢 Shares</span>
           </label>
         </div>
@@ -438,15 +421,22 @@
 
       <div class="field-group" style="margin-bottom:0;">
         <label>Select People *</label>
-        <div id="hint-text" class="hint-text"></div>
-        <div id="sum-check" class="sum-check"></div>
+
+        <div id="hint-box" style="display:none;" class="hint-text"></div>
+        <div id="sum-check" style="display:none;" class="sum-check ok"></div>
+
         <div class="people-list" id="people-list">
           {% for p in participants %}
-          <div class="person-row">
-            <input type="checkbox" class="person-checkbox" name="people" value="{{ p }}" id="chk_{{ forloop.counter }}" checked>
+          <div class="person-row selected" data-person="{{ p }}">
+            <input type="checkbox" class="person-checkbox" name="people" value="{{ p }}" checked>
             <span class="person-name">{{ p }}</span>
-            <input class="person-extra" type="number" id="extra_{{ forloop.counter }}"
-                   name="pct_{{ p }}" step="0.01" min="0" placeholder="%">
+            <!-- extra input: visibility controlled ONLY by JS inline style, never CSS -->
+            <input class="person-extra"
+                   type="number"
+                   data-person="{{ p }}"
+                   step="0.01" min="0"
+                   placeholder="%"
+                   style="display:none;">
           </div>
           {% endfor %}
         </div>
@@ -463,7 +453,6 @@
     </form>
   </div>
 
-  <!-- Past Splits -->
   {% if past_splits %}
   <div class="section-label">Past Splits</div>
   <div class="card">
@@ -501,153 +490,262 @@
 </div>
 
 <script>
-const TYPE_LABELS = { equal: 'lbl-equal', percentage: 'lbl-percentage', exact: 'lbl-exact', shares: 'lbl-shares' };
+(function () {
+  'use strict';
 
-function setSplitType(type) {
-  // Update active pill
-  Object.values(TYPE_LABELS).forEach(id => document.getElementById(id).classList.remove('active'));
-  document.getElementById(TYPE_LABELS[type]).classList.add('active');
-
-  const rows = document.querySelectorAll('.person-row');
-  const hint = document.getElementById('hint-text');
-  const sumCheck = document.getElementById('sum-check');
-
-  const hints = {
-    percentage: 'Enter percentage for each person — must add up to 100.',
-    exact: 'Enter the exact amount each person owes.',
-    shares: 'Enter number of shares per person (e.g. 1, 2). Divided proportionally.'
+  // ── Pill label map ────────────────────────────────────────────────────────
+  var PILLS = { equal: 'lbl-equal', percentage: 'lbl-percentage', exact: 'lbl-exact', shares: 'lbl-shares' };
+  var HINTS = {
+    percentage: '📊 Enter % for each person — must total 100%.',
+    exact:      '💰 Enter the exact ₹ amount each person owes.',
+    shares:     '🔢 Enter shares per person (e.g. 1, 2). Bill split proportionally.'
   };
 
-  rows.forEach(row => {
-    const checkbox = row.querySelector('input[type=checkbox]');
-    const extra    = row.querySelector('.person-extra');
-    const person   = checkbox.value;
+  var currentType = 'equal';
+
+  // ── Getters ───────────────────────────────────────────────────────────────
+  function allRows()     { return Array.from(document.querySelectorAll('#people-list .person-row')); }
+  function checkedRows() { return allRows().filter(function(r){ return r.querySelector('.person-checkbox').checked; }); }
+
+  function extraOf(row)    { return row.querySelector('.person-extra'); }
+  function checkboxOf(row) { return row.querySelector('.person-checkbox'); }
+  function personOf(row)   { return row.dataset.person; }
+
+  // ── Show / hide the extra input ───────────────────────────────────────────
+  // Using explicit 'flex' / 'none' on the element — never relying on CSS default
+  function showExtra(inp) { inp.style.display = 'block'; }
+  function hideExtra(inp) { inp.style.display = 'none';  }
+
+  // ── Apply a split type ────────────────────────────────────────────────────
+  function applySplitType(type) {
+    currentType = type;
+
+    // update pills
+    Object.keys(PILLS).forEach(function(k){
+      document.getElementById(PILLS[k]).classList.toggle('active', k === type);
+    });
+
+    var hintBox  = document.getElementById('hint-box');
+    var sumCheck = document.getElementById('sum-check');
 
     if (type === 'equal') {
-      extra.style.display = 'none';
+      hintBox.style.display = 'none';
     } else {
-      extra.style.display = '';
-      extra.placeholder = type === 'percentage' ? '%' : type === 'exact' ? '₹' : 'shares';
-      extra.name = (type === 'percentage' ? 'pct_' : type === 'exact' ? 'exact_' : 'shares_') + person;
-      if (type === 'shares') extra.value = extra.value || 1;
+      hintBox.style.display = 'block';
+      hintBox.textContent   = HINTS[type];
+    }
+    sumCheck.style.display = 'none';
+
+    allRows().forEach(function(row) {
+      var inp     = extraOf(row);
+      var checked = checkboxOf(row).checked;
+      var person  = personOf(row);
+
+      if (type === 'equal') {
+        hideExtra(inp);
+        inp.removeAttribute('name');
+        inp.value = '';
+        inp.disabled = false;
+      } else {
+        // set correct name
+        var prefix = type === 'percentage' ? 'pct_'
+                   : type === 'exact'      ? 'exact_'
+                   :                         'shares_';
+        inp.name        = prefix + person;
+        inp.placeholder = type === 'percentage' ? '%'
+                        : type === 'exact'      ? '₹'
+                        :                         'shares';
+        inp.disabled = !checked;
+
+        // default share value
+        if (type === 'shares' && checked && !inp.value) {
+          inp.value = '1';
+        }
+        if (type !== 'shares') {
+          inp.value = '';
+        }
+
+        showExtra(inp);  // ← always explicitly 'block', never ''
+      }
+    });
+
+    updateSumCheck();
+  }
+
+  // ── Checkbox toggled ──────────────────────────────────────────────────────
+  function onCheckboxChange(row) {
+    var checked = checkboxOf(row).checked;
+    var inp     = extraOf(row);
+
+    row.classList.toggle('selected', checked);
+    row.classList.toggle('faded',    !checked);
+
+    if (currentType !== 'equal') {
+      inp.disabled = !checked;
+      if (!checked) {
+        inp.value = '';
+      } else if (currentType === 'shares' && !inp.value) {
+        inp.value = '1';
+      }
+    }
+    updateSumCheck();
+  }
+
+  // ── Live sum / info display ───────────────────────────────────────────────
+  function updateSumCheck() {
+    var sc    = document.getElementById('sum-check');
+    var rows  = checkedRows();
+
+    if (currentType === 'percentage') {
+      var sum = 0;
+      rows.forEach(function(r){ sum += parseFloat(extraOf(r).value || 0); });
+      sc.style.display = 'flex';
+      if (Math.abs(sum - 100) < 0.01) {
+        sc.className  = 'sum-check ok';
+        sc.innerHTML  = '<i class="ti ti-circle-check"></i> Percentages add up to 100% ✓';
+      } else {
+        sc.className  = 'sum-check err';
+        sc.innerHTML  = '<i class="ti ti-alert-circle"></i> Total: ' + sum.toFixed(1) + '% — must be exactly 100%';
+      }
+
+    } else if (currentType === 'exact') {
+      var total = parseFloat(document.getElementById('total-amount-input').value || 0);
+      if (!total) { sc.style.display = 'none'; return; }
+      var entered = 0;
+      rows.forEach(function(r){ entered += parseFloat(extraOf(r).value || 0); });
+      sc.style.display = 'flex';
+      if (Math.abs(entered - total) < 0.01) {
+        sc.className = 'sum-check ok';
+        sc.innerHTML = '<i class="ti ti-circle-check"></i> Amounts add up to ₹' + total.toFixed(2) + ' ✓';
+      } else {
+        sc.className = 'sum-check err';
+        sc.innerHTML = '<i class="ti ti-alert-circle"></i> Entered: ₹' + entered.toFixed(2) + ' — need ₹' + total.toFixed(2);
+      }
+
+    } else if (currentType === 'shares') {
+      var totalShares = 0;
+      rows.forEach(function(r){ totalShares += parseInt(extraOf(r).value || 0); });
+      var bill = parseFloat(document.getElementById('total-amount-input').value || 0);
+      if (totalShares > 0 && bill > 0) {
+        sc.style.display = 'flex';
+        sc.className     = 'sum-check ok';
+        sc.innerHTML     = '<i class="ti ti-circle-check"></i> ' + totalShares + ' total shares · ₹' + (bill / totalShares).toFixed(2) + ' per share';
+      } else {
+        sc.style.display = 'none';
+      }
+
+    } else {
+      sc.style.display = 'none';
+    }
+  }
+
+  // ── Submit validation ─────────────────────────────────────────────────────
+  document.getElementById('split-form').addEventListener('submit', function(e) {
+    var rows = checkedRows();
+
+    if (rows.length === 0) {
+      e.preventDefault();
+      alert('Please select at least one person.');
+      return;
+    }
+
+    if (currentType === 'percentage') {
+      var sum = 0, missing = false;
+      rows.forEach(function(r){
+        var v = extraOf(r).value.trim();
+        if (v === '') missing = true;
+        sum += parseFloat(v || 0);
+      });
+      if (missing) { e.preventDefault(); alert('Please enter a percentage for every selected person.'); return; }
+      if (Math.abs(sum - 100) > 0.01) { e.preventDefault(); alert('Percentages must add up to 100%. Currently: ' + sum.toFixed(1) + '%'); return; }
+    }
+
+    if (currentType === 'exact') {
+      var total = parseFloat(document.getElementById('total-amount-input').value || 0);
+      var entered = 0, missing2 = false;
+      rows.forEach(function(r){
+        var v = extraOf(r).value.trim();
+        if (v === '') missing2 = true;
+        entered += parseFloat(v || 0);
+      });
+      if (missing2) { e.preventDefault(); alert('Please enter an amount for every selected person.'); return; }
+      if (Math.abs(entered - total) > 0.01) { e.preventDefault(); alert('Exact amounts must total ₹' + total.toFixed(2) + '. Currently: ₹' + entered.toFixed(2)); return; }
+    }
+
+    if (currentType === 'shares') {
+      var bad = false;
+      rows.forEach(function(r){
+        var v = parseInt(extraOf(r).value || 0);
+        if (!v || v < 1) bad = true;
+      });
+      if (bad) { e.preventDefault(); alert('Please enter a valid share count (min 1) for every selected person.'); return; }
     }
   });
 
-  hint.style.display = type === 'equal' ? 'none' : '';
-  hint.textContent   = hints[type] || '';
-  sumCheck.style.display = 'none';
-}
-
-// Live sum check for percentage
-document.getElementById('split-form').addEventListener('input', () => {
-  const type = document.querySelector('input[name=split_type]:checked').value;
-  if (type !== 'percentage') return;
-  let sum = 0;
-  document.querySelectorAll('.person-extra').forEach(inp => {
-    if (inp.style.display !== 'none') sum += parseFloat(inp.value || 0);
+  // ── Wire radio buttons ────────────────────────────────────────────────────
+  document.querySelectorAll('input[name=split_type]').forEach(function(radio){
+    radio.addEventListener('change', function(){ applySplitType(this.value); });
   });
-  const sc = document.getElementById('sum-check');
-  sc.style.display = '';
-  if (Math.abs(sum - 100) < 0.01) {
-    sc.className = 'sum-check ok';
-    sc.innerHTML = '<i class="ti ti-circle-check"></i> Percentages add up to 100%';
-  } else {
-    sc.className = 'sum-check err';
-    sc.innerHTML = '<i class="ti ti-alert-circle"></i> Total: ' + sum.toFixed(1) + '% (must be 100%)';
-  }
-});
+
+  // ── Wire checkboxes ───────────────────────────────────────────────────────
+  allRows().forEach(function(row){
+    checkboxOf(row).addEventListener('change', function(){ onCheckboxChange(row); });
+  });
+
+  // ── Live input → update sum display ──────────────────────────────────────
+  document.getElementById('split-form').addEventListener('input', updateSumCheck);
+
+  // ── Init — run equal type to ensure all extras are properly hidden ────────
+  applySplitType('equal');
+
+})();
 </script>
-<!-- ── Page Transition Loader ── -->
-<div id="page-loader" style="
-  display:none;
-  position:fixed;
-  inset:0;
-  z-index:99999;
-  background:#f0f4f8;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:28px;
-  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-">
+
+<!-- Page Loader -->
+<div id="page-loader" style="display:none;position:fixed;inset:0;z-index:99999;background:#f0f4f8;flex-direction:column;align-items:center;justify-content:center;gap:28px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <div style="display:flex;align-items:center;gap:12px;">
     <div style="width:48px;height:48px;background:#6366f1;border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(99,102,241,0.35);">
       <i class="ti ti-plane" style="font-size:24px;color:#fff;"></i>
     </div>
     <span style="font-size:20px;font-weight:700;color:#1f2937;">TripBudget</span>
   </div>
-
   <div style="position:relative;width:72px;height:72px;">
     <div style="position:absolute;inset:0;border-radius:50%;border:3px solid transparent;border-top-color:#6366f1;animation:_spin 1s linear infinite;"></div>
     <div style="position:absolute;inset:10px;border-radius:50%;border:3px solid transparent;border-right-color:#7c3aed;animation:_spin 0.75s linear infinite reverse;"></div>
     <div style="position:absolute;inset:20px;border-radius:50%;border:3px solid transparent;border-bottom-color:#a855f7;animation:_spin 0.5s linear infinite;"></div>
   </div>
-
-  <div style="width:180px;">
-    <div style="height:4px;background:#e5e7eb;border-radius:99px;overflow:hidden;">
-      <div id="loader-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#6366f1,#7c3aed);border-radius:99px;transition:width 0.3s ease;"></div>
-    </div>
-  </div>
-
+  <div style="width:180px;"><div style="height:4px;background:#e5e7eb;border-radius:99px;overflow:hidden;"><div id="loader-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#6366f1,#7c3aed);border-radius:99px;transition:width 0.3s ease;"></div></div></div>
   <div id="loader-text" style="font-size:13px;color:#6b7280;transition:opacity 0.2s;">Navigating...</div>
 </div>
-
-<style>
-  @keyframes _spin { to { transform:rotate(360deg); } }
-</style>
-
+<style>@keyframes _spin { to { transform:rotate(360deg); } }</style>
 <script>
-(function () {
-  const loader   = document.getElementById('page-loader');
-  const bar      = document.getElementById('loader-bar');
-  const txt      = document.getElementById('loader-text');
-
-  const messages = [
-    'Navigating...', 'Loading your data...', 'Almost there...', 'Getting things ready...'
-  ];
-
-  function showLoader() {
-    loader.style.display = 'flex';
-    let progress = 0;
-    let msgIndex = 0;
-
-    // fast initial jump to 60%, then slow crawl
-    setTimeout(() => { bar.style.width = '60%'; }, 50);
-    setTimeout(() => { bar.style.width = '75%'; }, 400);
-    setTimeout(() => { bar.style.width = '85%'; }, 900);
-    setTimeout(() => { bar.style.width = '92%'; }, 1600);
-
-    // rotate messages
-    const msgInterval = setInterval(() => {
-      msgIndex = (msgIndex + 1) % messages.length;
-      txt.style.opacity = 0;
-      setTimeout(() => {
-        txt.textContent = messages[msgIndex];
-        txt.style.opacity = 1;
-      }, 200);
-    }, 1500);
+(function(){
+  var loader = document.getElementById('page-loader');
+  var bar    = document.getElementById('loader-bar');
+  var txt    = document.getElementById('loader-text');
+  var msgs   = ['Navigating...','Loading your data...','Almost there...','Getting things ready...'];
+  function show(){
+    loader.style.display='flex';
+    setTimeout(function(){ bar.style.width='60%'; },50);
+    setTimeout(function(){ bar.style.width='75%'; },400);
+    setTimeout(function(){ bar.style.width='85%'; },900);
+    var i=0;
+    setInterval(function(){
+      i=(i+1)%msgs.length; txt.style.opacity=0;
+      setTimeout(function(){ txt.textContent=msgs[i]; txt.style.opacity=1; },200);
+    },1500);
   }
-
-  // intercept all <a> clicks except external, hash, download links
-  document.addEventListener('click', function (e) {
-    const a = e.target.closest('a[href]');
-    if (!a) return;
-    const href = a.getAttribute('href');
-    if (!href || href.startsWith('#') || href.startsWith('http') || href.startsWith('mailto') || a.hasAttribute('download') || a.target === '_blank') return;
-    showLoader();
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a[href]');
+    if(!a) return;
+    var h=a.getAttribute('href');
+    if(!h||h.startsWith('#')||h.startsWith('http')||h.startsWith('mailto')||a.hasAttribute('download')||a.target==='_blank') return;
+    show();
   });
-
-  // intercept all form submits
-  document.addEventListener('submit', function (e) {
-    const form = e.target;
-    if (form.method && form.method.toLowerCase() === 'get') return; // skip search/filter forms if needed
-    showLoader();
+  document.addEventListener('submit',function(e){
+    setTimeout(function(){ if(!e.defaultPrevented) show(); },0);
   });
-
-  // hide loader if user presses back button
-  window.addEventListener('pageshow', function (e) {
-    if (e.persisted) loader.style.display = 'none';
-  });
+  window.addEventListener('pageshow',function(e){ if(e.persisted) loader.style.display='none'; });
 })();
 </script>
 </body>
