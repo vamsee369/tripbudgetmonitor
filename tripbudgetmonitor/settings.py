@@ -126,16 +126,20 @@ STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
+from whitenoise.storage import CompressedManifestStaticFilesStorage
 
-# Django 4.2+ style (used by Django itself)
+class WhiteNoiseStaticFilesStorage(CompressedManifestStaticFilesStorage):
+    manifest_strict = False
 STORAGES = {
     "default": {
         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "tripbudgetmonitor.settings.WhiteNoiseStaticFilesStorage",
     },
 }
+
+STATICFILES_STORAGE = "tripbudgetmonitor.settings.WhiteNoiseStaticFilesStorage"
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 # Legacy style (required by django-cloudinary-storage 0.3.0 compatibility check)
