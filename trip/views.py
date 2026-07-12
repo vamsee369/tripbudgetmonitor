@@ -354,6 +354,9 @@ def add_expense(request, trip_id):
         )
 
         receipt = request.FILES.get("receipt")
+        print("FILES:", request.FILES)
+        print("receipt:", request.FILES.get("receipt"))
+        receipt = request.FILES.get("receipt")
         if receipt:
             expense.receipt      = receipt
             expense.receipt_type = request.POST.get("receipt_type", "")
