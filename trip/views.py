@@ -137,7 +137,7 @@ def trip_history(request):
 @login_required
 def trip_list(request):
     today = timezone.now().date()
-    completed_trips = visible_trips_for(request.user).filter(end_date__lt=today)
+    completed_trips = visible_trips_for(request.user).filter(end_date__lt=today).order_by('-end_date')
     return render(request, 'trip/trip_list.html', {'trips': completed_trips})
 
 
