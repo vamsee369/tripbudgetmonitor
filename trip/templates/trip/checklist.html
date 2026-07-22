@@ -1,0 +1,316 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Checklist — {{ trip.name }}</title>
+  <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon">
+  <link rel="manifest" href="{% static 'manifest.json' %}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f0f4f8;
+      --white:     #ffffff;
+      --border:    #e5e7eb;
+      --accent:    #6366f1;
+      --accent-lt: #eef2ff;
+      --green:     #10b981;
+      --green-lt:  #d1fae5;
+      --purple:    #7c3aed;
+      --purple-lt: #f5f3ff;
+      --text:      #1f2937;
+      --muted:     #6b7280;
+      --radius:    16px;
+      --radius-sm: 10px;
+      --shadow:    0 4px 24px rgba(0,0,0,.07);
+    }
+
+    [data-theme="dark"] {
+      --bg:        #0f172a;
+      --white:     #1e293b;
+      --border:    #334155;
+      --accent:    #818cf8;
+      --accent-lt: #1e1b4b;
+      --green:     #34d399;
+      --green-lt:  #064e3b;
+      --purple:    #a78bfa;
+      --purple-lt: #2e1065;
+      --text:      #f1f5f9;
+      --muted:     #94a3b8;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Topbar ── */
+    .topbar {
+      background: var(--white);
+      border-bottom: 1.5px solid var(--border);
+      padding: 14px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .topbar-back {
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 10px;
+      background: var(--bg);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 1.1rem;
+    }
+    .topbar-title {
+      font-weight: 700;
+      font-size: 1rem;
+      flex: 1;
+    }
+    .topbar-sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    /* ── Main wrap ── */
+    .wrap { max-width: 500px; margin: 0 auto; padding: 1rem; }
+
+    /* ── Progress ring card ── */
+    .progress-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      margin-bottom: 1rem;
+      border-left: 4px solid var(--purple);
+    }
+    .ring-wrap { position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+    .ring-wrap svg { transform: rotate(-90deg); }
+    .ring-bg { fill: none; stroke: var(--border); stroke-width: 8; }
+    .ring-fg {
+      fill: none;
+      stroke: var(--purple);
+      stroke-width: 8;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.6s ease;
+    }
+    .ring-label {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--purple);
+    }
+    .progress-text .p-title { font-weight: 700; font-size: 1rem; }
+    .progress-text .p-sub   { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 1.25rem 0 0.6rem;
+    }
+
+    /* ── Checklist items ── */
+    .checklist-section {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .checklist-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .checklist-item:last-child { border-bottom: none; }
+    .item-icon {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+    .icon-done { background: var(--green-lt); }
+    .icon-todo { background: var(--bg); border: 1.5px solid var(--border); }
+    .item-label { flex: 1; font-size: 0.875rem; }
+    .badge-auto {
+      font-size: 0.65rem;
+      background: var(--accent-lt);
+      color: var(--accent);
+      padding: 2px 7px;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+
+    /* ── Manual checkboxes ── */
+    .manual-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .manual-item:last-child { border-bottom: none; }
+    .manual-item label { flex: 1; font-size: 0.875rem; cursor: pointer; }
+    .manual-item input[type="checkbox"] {
+      width: 18px; height: 18px;
+      accent-color: var(--purple);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ── Save button ── */
+    .save-btn {
+      width: 100%;
+      padding: 0.9rem;
+      background: var(--purple);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 0.5rem;
+      margin-bottom: 2rem;
+      transition: opacity 0.2s;
+    }
+    .save-btn:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <a href="{% url 'trip_dashboard' trip.id %}" class="topbar-back">
+    <i class="ti ti-arrow-left"></i>
+  </a>
+  <div>
+    <div class="topbar-title">Pre-Trip Checklist</div>
+    <div class="topbar-sub">{{ trip.name }} · {{ trip.destination }}</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- Progress ring -->
+  <div class="progress-card">
+    <div class="ring-wrap">
+      {% with circ=188 %}
+      {% with offset=circ|add:0 %}
+      <svg viewBox="0 0 72 72" width="72" height="72">
+        <circle class="ring-bg" cx="36" cy="36" r="30"/>
+        <circle class="ring-fg" cx="36" cy="36" r="30"
+          stroke-dasharray="188"
+          stroke-dashoffset="{{ circ }}"
+          id="progressRing"/>
+      </svg>
+      {% endwith %}
+      {% endwith %}
+      <div class="ring-label" id="ringLabel">{{ done }}/{{ total }}</div>
+    </div>
+    <div class="progress-text">
+      <div class="p-title">{{ done }} of {{ total }} items ready</div>
+      <div class="p-sub">
+        {% if percent == 100 %}
+          🎉 You're all set for the trip!
+        {% elif percent >= 70 %}
+          Almost there — a few things left.
+        {% elif percent >= 40 %}
+          Good progress, keep going!
+        {% else %}
+          Let's get you prepared for the trip.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Auto-checks -->
+  <div class="section-label">Smart checks (auto-filled from your trip data)</div>
+  <div class="checklist-section">
+    {% for item in auto_items %}
+    <div class="checklist-item">
+      <div class="item-icon {% if item.done %}icon-done{% else %}icon-todo{% endif %}">
+        {% if item.done %}✅{% else %}⬜{% endif %}
+      </div>
+      <div class="item-label">{{ item.label }}</div>
+      <span class="badge-auto">Auto</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Manual checklist -->
+  <div class="section-label">Manual checklist (tick when done)</div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="checklist-section">
+      {% for item in manual_items %}
+      <div class="manual-item">
+        <input type="checkbox" name="{{ item.key }}" id="{{ item.key }}"
+               {% if item.done %}checked{% endif %}
+               onchange="updateRing()">
+        <label for="{{ item.key }}">{{ item.label }}</label>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="submit" class="save-btn">
+      <i class="ti ti-device-floppy"></i> Save Checklist
+    </button>
+  </form>
+
+</div><!-- /wrap -->
+
+<script>
+  // Animate progress ring on load
+  const done    = {{ done }};
+  const total   = {{ total }};
+  const circ    = 188;
+  const ring    = document.getElementById('progressRing');
+  const label   = document.getElementById('ringLabel');
+
+  function setRing(d, t) {
+    const pct = t ? d / t : 0;
+    ring.style.strokeDashoffset = circ - (circ * pct);
+    label.textContent = d + '/' + t;
+  }
+
+  // Animate in
+  setTimeout(() => setRing(done, total), 100);
+
+  // Live update when checkboxes change
+  function updateRing() {
+    const autoCount   = {{ auto_items|length }};
+    const autoDone    = {{ done }} - document.querySelectorAll('.checklist-section input[type=checkbox]:checked').length;
+    // recount: auto done stays same, manual checked count changes
+    const manualDone  = document.querySelectorAll('input[type=checkbox]:checked').length;
+    const autoDoneVal = {{ auto_items|length }} - {{ auto_items|length }} + {% for item in auto_items %}{% if item.done %}1+{% else %}0+{% endif %}{% endfor %}0;
+    setRing(autoDoneVal + manualDone, total);
+  }
+
+  // Dark mode sync with home page preference
+  const saved = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+</script>
+</body>
+</html>

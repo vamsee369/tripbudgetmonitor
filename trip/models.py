@@ -205,3 +205,28 @@ class TripCollaborator(models.Model):
 
     def __str__(self):
         return f"{self.user.username} → {self.trip.name} ({self.permission})"
+
+
+class TripChecklist(models.Model):
+    """
+    Stores the checklist state for a specific user on a specific trip.
+    - manual_items: JSON dict of {key: bool} for user-toggled checklist items.
+    - Auto-checked items (budget set, participants added, etc.) are computed
+      dynamically in views and never stored here.
+    One row per (trip, user) pair — enforced by unique_together.
+    """
+    trip = models.ForeignKey(
+        Trip, on_delete=models.CASCADE, related_name="checklists"
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="checklists"
+    )
+    # {"id_docs": true, "hotel_booked": false, ...}
+    manual_items = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("trip", "user")
+
+    def __str__(self):
+        return f"Checklist — {self.user.username} / {self.trip.name}"

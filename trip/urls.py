@@ -30,4 +30,5 @@ urlpatterns = [
     path('trip/<int:trip_id>/activity/', views.activity_feed, name='activity_feed'),
     path('loading/', views.loading_view, name='loading'),
     path('offline/', views.offline_view, name='offline'),
+    path('trip/<int:trip_id>/checklist/', views.trip_checklist, name='trip_checklist'),
 ]

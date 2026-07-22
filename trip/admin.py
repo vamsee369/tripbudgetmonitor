@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Trip, Expense, SplitBill, SplitEntry, SettlementPayment, TripCollaborator
+from .models import Trip, Expense, SplitBill, SplitEntry, SettlementPayment, TripCollaborator, TripChecklist
 
 
 @admin.register(Trip)
@@ -58,3 +58,19 @@ class TripCollaboratorAdmin(admin.ModelAdmin):
     list_display = ('trip', 'user', 'permission', 'added_at')
     list_filter = ('permission',)
     search_fields = ('trip__name', 'user__username')
+
+
+@admin.register(TripChecklist)
+class TripChecklistAdmin(admin.ModelAdmin):
+    list_display = ('trip', 'user', 'manual_items_summary', 'updated_at')
+    list_filter = ('trip',)
+    search_fields = ('trip__name', 'user__username')
+    readonly_fields = ('updated_at',)
+
+    def manual_items_summary(self, obj):
+        if not obj.manual_items:
+            return "—"
+        done = sum(1 for v in obj.manual_items.values() if v)
+        total = len(obj.manual_items)
+        return f"{done}/{total} done"
+    manual_items_summary.short_description = "Progress"

@@ -15,7 +15,7 @@ from io import BytesIO
 from django.db import models as db_models
 from django.core.exceptions import PermissionDenied
 
-from .models import Trip, Expense, SplitBill, SplitEntry, SettlementPayment, TripCollaborator
+from .models import Trip, Expense, SplitBill, SplitEntry, SettlementPayment, TripCollaborator, TripChecklist
 
 import pytesseract
 import platform as _platform
@@ -75,6 +75,8 @@ def is_trip_owner(trip, user):
 def home(request):
     ongoing_trip = None
     ongoing_trips = []
+    recent_trips = []
+    checklist_badges = {}
     if request.user.is_authenticated:
         ongoing_trips = (
             visible_trips_for(request.user)
@@ -82,9 +84,21 @@ def home(request):
             .order_by('-created_at')
         )
         ongoing_trip = ongoing_trips.first()
+        recent_trips = visible_trips_for(request.user).order_by('-created_at')[:5]
+        # Build checklist badge info: incomplete checklist before trip start
+        for trip in recent_trips:
+            if trip.start_date >= date.today():
+                checklist, _ = TripChecklist.objects.get_or_create(
+                    trip=trip, user=request.user
+                )
+                total, done = _checklist_progress(trip, checklist)
+                if done < total:
+                    checklist_badges[trip.id] = {'total': total, 'done': done}
     return render(request, 'trip/home.html', {
         'ongoing_trip': ongoing_trip,
         'ongoing_trips': ongoing_trips,
+        'recent_trips': recent_trips,
+        'checklist_badges': checklist_badges,
     })
 
 
@@ -1186,3 +1200,72 @@ def custom_404(request, exception=None):
 
 def custom_403(request, exception=None):
     return render(request, '403.html', status=403)
+
+
+# ── Pre-Trip Checklist ────────────────────────────────────────────────────────
+
+MANUAL_CHECKLIST_ITEMS = [
+    ("id_docs",        "ID / Aadhaar / Passport ready"),
+    ("hotel_booked",   "Hotel / stay booked"),
+    ("transport",      "Transport tickets booked"),
+    ("emergency",      "Emergency contacts saved"),
+    ("cash",           "Cash withdrawn"),
+    ("chargers",       "Chargers & power bank packed"),
+    ("offline_maps",   "Downloaded offline maps"),
+]
+
+
+def _checklist_progress(trip, checklist):
+    """Return (total_items, completed_items) for a trip checklist."""
+    # Auto-checks
+    auto = [
+        bool(trip.budget and trip.budget > 0),
+        bool(trip.get_participants()),
+        True,  # dates always set if trip exists
+        trip.expenses.exists(),
+    ]
+    manual_state = checklist.manual_items or {}
+    manual = [manual_state.get(key, False) for key, _ in MANUAL_CHECKLIST_ITEMS]
+    all_items = auto + manual
+    return len(all_items), sum(1 for x in all_items if x)
+
+
+@login_required
+def trip_checklist(request, trip_id):
+    trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_view(trip, request.user):
+        raise PermissionDenied
+
+    checklist, _ = TripChecklist.objects.get_or_create(trip=trip, user=request.user)
+
+    if request.method == "POST":
+        new_state = {}
+        for key, _ in MANUAL_CHECKLIST_ITEMS:
+            new_state[key] = request.POST.get(key) == "on"
+        checklist.manual_items = new_state
+        checklist.save()
+        return redirect("trip_checklist", trip_id=trip_id)
+
+    # Build item list for template
+    auto_items = [
+        {"label": "Budget set",            "done": bool(trip.budget and trip.budget > 0), "auto": True},
+        {"label": "Participants added",    "done": bool(trip.get_participants()),          "auto": True},
+        {"label": "Trip dates set",        "done": True,                                   "auto": True},
+        {"label": "First expense logged",  "done": trip.expenses.exists(),                 "auto": True},
+    ]
+    manual_state = checklist.manual_items or {}
+    manual_items = [
+        {"key": key, "label": label, "done": manual_state.get(key, False), "auto": False}
+        for key, label in MANUAL_CHECKLIST_ITEMS
+    ]
+    total, done = _checklist_progress(trip, checklist)
+    percent = int((done / total) * 100) if total else 0
+
+    return render(request, "trip/checklist.html", {
+        "trip": trip,
+        "auto_items": auto_items,
+        "manual_items": manual_items,
+        "total": total,
+        "done": done,
+        "percent": percent,
+    })

@@ -804,6 +804,12 @@
     <a href="{% url 'trip_list' %}" class="quick-btn">
       <i class="ti ti-list-check"></i> Completed
     </a>
+    {% if ongoing_trip %}
+    <a href="{% url 'trip_checklist' ongoing_trip.id %}" class="quick-btn" style="border-color:#7c3aed;background:#f5f3ff;">
+      <i class="ti ti-checklist" style="color:#7c3aed;"></i>
+      <span style="color:#5b21b6;">Checklist</span>
+    </a>
+    {% endif %}
     {% if ongoing_trips|length == 1 %}
     <a href="{% url 'add_expense' ongoing_trip.id %}" class="quick-btn" style="border-color:var(--green);background:var(--green-lt);">
       <i class="ti ti-receipt" style="color:var(--green);"></i>
@@ -844,52 +850,97 @@
   </div>
   {% endif %}
 
-  <!-- Feature highlights -->
-  <div class="section-label">What you can do</div>
-  <div class="feature-grid">
-    <div class="feature-item">
-      <span class="feature-emoji">📊</span>
-      <div class="feature-txt">
-        <div class="ft">Live Budgets</div>
-        <div class="fs">Real-time spend tracking</div>
+  <!-- Pre-Trip Checklist Card -->
+  <div class="section-label">Pre-Trip Checklist</div>
+  {% if ongoing_trip %}
+  {% with bid=ongoing_trip.id %}
+  <div class="card" style="border-left: 4px solid #7c3aed;">
+    <div class="card-header">
+      <div class="card-icon" style="background:#f5f3ff;">✅</div>
+      <div>
+        <div class="card-title">{{ ongoing_trip.name }}</div>
+        <div class="card-sub">Are you ready for your trip?</div>
+      </div>
+      <a href="{% url 'trip_checklist' ongoing_trip.id %}" class="quick-btn" style="margin-left:auto;border-color:#7c3aed;color:#5b21b6;white-space:nowrap;font-size:0.75rem;padding:0.3rem 0.7rem;">
+        Open →
+      </a>
+    </div>
+
+    <!-- Smart auto-checks preview -->
+    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin:0.75rem 0 0.5rem;">
+      <span class="checklist-pill {% if ongoing_trip.budget and ongoing_trip.budget > 0 %}pill-done{% else %}pill-todo{% endif %}">
+        {% if ongoing_trip.budget and ongoing_trip.budget > 0 %}✅{% else %}⬜{% endif %} Budget set
+      </span>
+      <span class="checklist-pill {% if ongoing_trip.get_participants %}pill-done{% else %}pill-todo{% endif %}">
+        {% if ongoing_trip.get_participants %}✅{% else %}⬜{% endif %} Participants added
+      </span>
+      <span class="checklist-pill pill-done">✅ Dates set</span>
+      <span class="checklist-pill {% if ongoing_trip.expenses.exists %}pill-done{% else %}pill-todo{% endif %}">
+        {% if ongoing_trip.expenses.exists %}✅{% else %}⬜{% endif %} First expense logged
+      </span>
+    </div>
+    <div style="font-size:0.78rem;color:var(--muted);margin-top:0.4rem;">
+      + 7 manual items (documents, bookings, packing) · <a href="{% url 'trip_checklist' ongoing_trip.id %}" style="color:#7c3aed;">View full checklist →</a>
+    </div>
+  </div>
+  {% endwith %}
+  {% elif recent_trips %}
+  <!-- Show checklist link for most recent trip when no ongoing -->
+  <div class="card" style="border-left: 4px solid #7c3aed;">
+    <div class="card-header">
+      <div class="card-icon" style="background:#f5f3ff;">✅</div>
+      <div>
+        <div class="card-title">Pre-Trip Checklist</div>
+        <div class="card-sub">Prepare documents, bookings & packing for your next trip</div>
       </div>
     </div>
-    <div class="feature-item">
-      <span class="feature-emoji">🧾</span>
-      <div class="feature-txt">
-        <div class="ft">Receipt Scan</div>
-        <div class="fs">OCR auto-fill expenses</div>
-      </div>
+    <div style="font-size:0.85rem;color:var(--muted);margin-top:0.5rem;">
+      Select a trip to open its checklist:
     </div>
-    <div class="feature-item">
-      <span class="feature-emoji">👥</span>
-      <div class="feature-txt">
-        <div class="ft">Group Splits</div>
-        <div class="fs">Fair bill splitting</div>
+    {% for trip in recent_trips %}
+    <a href="{% url 'trip_checklist' trip.id %}" class="trip-row">
+      <div class="trip-row-icon">📋</div>
+      <div class="trip-row-info">
+        <div class="trip-row-name">{{ trip.name }}</div>
+        <div class="trip-row-meta">{{ trip.destination }}</div>
       </div>
-    </div>
-    <div class="feature-item">
-      <span class="feature-emoji">📍</span>
-      <div class="feature-txt">
-        <div class="ft">Spend Heatmaps</div>
-        <div class="fs">Visual analytics</div>
-      </div>
-    </div>
-    <div class="feature-item">
-      <span class="feature-emoji">🔁</span>
-      <div class="feature-txt">
-        <div class="ft">Recurring</div>
-        <div class="fs">Daily / weekly / monthly</div>
-      </div>
-    </div>
-    <div class="feature-item">
-      <span class="feature-emoji">📄</span>
-      <div class="feature-txt">
-        <div class="ft">PDF Export</div>
-        <div class="fs">Download full report</div>
+      {% if checklist_badges|dictsort:trip.id %}
+      <span style="font-size:0.7rem;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:99px;">Incomplete</span>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card" style="border-left: 4px solid #7c3aed;opacity:0.7;">
+    <div class="card-header">
+      <div class="card-icon" style="background:#f5f3ff;">✅</div>
+      <div>
+        <div class="card-title">Pre-Trip Checklist</div>
+        <div class="card-sub">Create a trip to get your personalised checklist</div>
       </div>
     </div>
   </div>
+  {% endif %}
+
+<style>
+.checklist-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 99px;
+  font-weight: 500;
+}
+.pill-done {
+  background: #d1fae5;
+  color: #065f46;
+}
+.pill-todo {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+</style>
 </div>
 
 <script>
