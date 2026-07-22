@@ -31,7 +31,7 @@ cloudinary.config(
 # Security
 # ---------------------------
 SECRET_KEY = os.environ.get("SECRET_KEY")
-DEBUG = True
+DEBUG = False
 ALLOWED_HOSTS = [
     'tripexpensetracker.onrender.com',
     "localhost",
@@ -162,7 +162,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Login
 # ---------------------------
 LOGIN_URL = "/accounts/login/"
-"""
+
 # ---------------------------
 # HTTPS / Security Cookies
 # ---------------------------
@@ -173,7 +173,7 @@ SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
-"""
+
 # ---------------------------
 # Jazzmin
 # ---------------------------
