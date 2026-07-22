@@ -27,6 +27,7 @@ urlpatterns = [
     # ✅ NEW — Spending Heatmap Analytics
     path('trip/<int:trip_id>/analytics/', views.spending_heatmap, name='spending_heatmap'),
     path('trip/<int:trip_id>/heatmap-ajax/', views.heatmap_ajax, name='heatmap_ajax'),
+    path('trip/<int:trip_id>/activity/', views.activity_feed, name='activity_feed'),
     path('loading/', views.loading_view, name='loading'),
     path('offline/', views.offline_view, name='offline'),
 ]

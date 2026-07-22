@@ -112,6 +112,60 @@
     .form-group { margin-bottom: 14px; }
     .form-group:last-child { margin-bottom: 0; }
     label { display: block; font-size: .82rem; font-weight: 600; color: var(--text-md); margin-bottom: 5px; }
+
+    /* ── Voice Input ─────────────────────────────────────────── */
+    .voice-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+      border: 1.5px solid #c7d2fe;
+      border-radius: 14px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+    }
+    .voice-btn {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 1.3rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: transform .15s, background .15s, box-shadow .15s;
+      box-shadow: 0 4px 14px rgba(99,102,241,.35);
+    }
+    .voice-btn:hover  { transform: scale(1.08); }
+    .voice-btn.active {
+      background: #ef4444;
+      box-shadow: 0 4px 18px rgba(239,68,68,.45);
+      animation: pulse-mic .8s ease-in-out infinite alternate;
+    }
+    @keyframes pulse-mic {
+      from { transform: scale(1); }
+      to   { transform: scale(1.12); }
+    }
+    .voice-info { flex: 1; min-width: 0; }
+    .voice-label { font-size: .82rem; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+    .voice-hint  { font-size: .74rem; color: var(--muted); }
+    .voice-status {
+      font-size: .78rem;
+      color: var(--muted);
+      min-height: 18px;
+      font-style: italic;
+      margin-top: 2px;
+      transition: color .2s;
+    }
+    .voice-status.listening { color: #ef4444; font-style: normal; font-weight: 600; }
+    .voice-status.success   { color: var(--green); font-style: normal; font-weight: 600; }
+    .voice-status.error     { color: #ef4444; }
+    .voice-no-support { display:none; font-size:.78rem; color:var(--muted); font-style:italic; }
+
     input[type=text], input[type=number], input[type=date], select, textarea {
       width: 100%; padding: 10px 14px;
       border: 1.5px solid var(--border); border-radius: var(--radius-sm);
@@ -284,6 +338,19 @@
 
   <form method="POST" enctype="multipart/form-data" id="expense-form">
     {% csrf_token %}
+
+    <!-- ── Voice Input Bar ──────────────────────────── -->
+    <div class="voice-bar" id="voice-bar">
+      <button type="button" class="voice-btn" id="voice-btn" onclick="toggleVoice()" title="Tap to speak">
+        🎤
+      </button>
+      <div class="voice-info">
+        <div class="voice-label">Voice Input</div>
+        <div class="voice-hint">Say: "500 rupees for lunch paid by Ravi"</div>
+        <div class="voice-status" id="voice-status">Tap mic to start…</div>
+      </div>
+    </div>
+    <div class="voice-no-support" id="voice-no-support">🎤 Voice input not supported in this browser.</div>
 
     <!-- Basic details -->
     <div class="section">
@@ -512,6 +579,166 @@
     el.classList.add('active');
     document.getElementById('recurrence_type_input').value = freq;
   }
+
+  // ── Voice Input ────────────────────────────────────────────
+  (function () {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      document.getElementById('voice-bar').style.display = 'none';
+      document.getElementById('voice-no-support').style.display = 'block';
+      return;
+    }
+
+    const btn      = document.getElementById('voice-btn');
+    const statusEl = document.getElementById('voice-status');
+    let recog      = null;
+    let listening  = false;
+
+    // Category keyword map
+    const catMap = {
+      'hotel': 'Accommodation', 'accommodation': 'Accommodation', 'room': 'Accommodation', 'stay': 'Accommodation',
+      'taxi': 'Transport', 'auto': 'Transport', 'bus': 'Transport', 'train': 'Transport', 'transport': 'Transport',
+      'cab': 'Transport', 'flight': 'Transport', 'uber': 'Transport', 'ola': 'Transport',
+      'food': 'Food & Dining', 'lunch': 'Food & Dining', 'dinner': 'Food & Dining', 'breakfast': 'Food & Dining',
+      'restaurant': 'Food & Dining', 'meal': 'Food & Dining', 'biryani': 'Food & Dining', 'snacks': 'Food & Dining',
+      'drinks': 'Drinks', 'beer': 'Drinks', 'chai': 'Drinks', 'coffee': 'Drinks', 'juice': 'Drinks',
+      'shopping': 'Shopping & Souvenirs', 'souvenir': 'Shopping & Souvenirs', 'clothes': 'Shopping & Souvenirs',
+      'medical': 'Emergency / Medical', 'medicine': 'Emergency / Medical', 'hospital': 'Emergency / Medical',
+      'emergency': 'Emergency / Medical', 'pharmacy': 'Emergency / Medical',
+      'activity': 'Activities & Entertainment', 'ticket': 'Activities & Entertainment',
+      'entry': 'Activities & Entertainment', 'show': 'Activities & Entertainment',
+      'tip': 'Tips & Service Charges', 'tips': 'Tips & Service Charges',
+    };
+
+    // Payment keyword map
+    const payMap = {
+      'upi': 'UPI', 'gpay': 'UPI', 'phonepe': 'UPI', 'paytm': 'UPI', 'online': 'UPI', 'google pay': 'UPI',
+      'cash': 'Cash', 'note': 'Cash', 'notes': 'Cash',
+      'card': 'Card', 'debit': 'Card', 'credit': 'Card', 'swipe': 'Card',
+    };
+
+    function parseVoice(text) {
+      const t   = text.toLowerCase().trim();
+      const res = {};
+
+      // Amount: "500 rupees", "₹500", "five hundred", number alone
+      const amtMatch = t.match(/(\d[\d,]*(?:\.\d{1,2})?)\s*(?:rupees?|rs\.?|₹)?/i)
+                    || t.match(/(?:rupees?|rs\.?|₹)\s*(\d[\d,]*(?:\.\d{1,2})?)/i);
+      if (amtMatch) res.amount = amtMatch[1].replace(/,/g, '');
+
+      // Category from keywords
+      for (const [kw, cat] of Object.entries(catMap)) {
+        if (t.includes(kw)) { res.category = cat; break; }
+      }
+
+      // Payment mode
+      for (const [kw, mode] of Object.entries(payMap)) {
+        if (t.includes(kw)) { res.payment_mode = mode; break; }
+      }
+
+      // Title: everything before "paid by" / "for" / "rupees" stripped
+      const titleMatch = t.match(/(?:for\s+)([a-z &]+?)(?:\s+paid|\s+\d|$)/i)
+                      || t.match(/^([a-z &]{3,30})\s+\d/i);
+      if (titleMatch) {
+        let raw = titleMatch[1].trim();
+        // capitalise first letter of each word
+        res.title = raw.replace(/\b\w/g, c => c.toUpperCase());
+      }
+
+      // Paid by: "paid by Ravi" → match participant names
+      const paidByMatch = t.match(/paid\s+by\s+([a-z]+)/i);
+      if (paidByMatch) {
+        const name = paidByMatch[1];
+        // Try to match against actual participant select options
+        const opts = Array.from(document.querySelectorAll('select[name="paid_by"] option'));
+        const found = opts.find(o => o.value.toLowerCase() === name.toLowerCase());
+        if (found) res.paid_by = found.value;
+      }
+
+      return res;
+    }
+
+    function applyParsed(parsed) {
+      if (parsed.title) {
+        const el = document.getElementById('id_title');
+        if (el && !el.value) el.value = parsed.title;
+      }
+      if (parsed.amount) {
+        const el = document.getElementById('id_amount');
+        if (el && !el.value) el.value = parsed.amount;
+      }
+      if (parsed.category) {
+        const sel = document.getElementById('category-select');
+        if (sel) {
+          const opt = Array.from(sel.options).find(o => o.value === parsed.category);
+          if (opt) {
+            sel.value = parsed.category;
+            toggleCustom(sel);
+          }
+        }
+      }
+      if (parsed.payment_mode) {
+        const sel = document.querySelector('select[name="payment_mode"]');
+        if (sel) sel.value = parsed.payment_mode;
+      }
+      if (parsed.paid_by) {
+        const sel = document.querySelector('select[name="paid_by"]');
+        if (sel) sel.value = parsed.paid_by;
+      }
+    }
+
+    window.toggleVoice = function () {
+      if (listening) {
+        recog && recog.stop();
+        return;
+      }
+
+      recog = new SpeechRecognition();
+      recog.lang = 'en-IN';
+      recog.interimResults = true;
+      recog.maxAlternatives = 1;
+
+      recog.onstart = () => {
+        listening = true;
+        btn.classList.add('active');
+        btn.textContent = '🔴';
+        statusEl.className = 'voice-status listening';
+        statusEl.textContent = 'Listening… speak now';
+      };
+
+      recog.onresult = (e) => {
+        const interim = Array.from(e.results).map(r => r[0].transcript).join(' ');
+        statusEl.textContent = '🎤 ' + interim;
+        if (e.results[e.results.length - 1].isFinal) {
+          const final = e.results[e.results.length - 1][0].transcript;
+          const parsed = parseVoice(final);
+          applyParsed(parsed);
+
+          const filled = Object.keys(parsed).length;
+          statusEl.className = filled ? 'voice-status success' : 'voice-status';
+          statusEl.textContent = filled
+            ? `✅ Filled ${filled} field${filled > 1 ? 's' : ''} — review below`
+            : '⚠️ Couldn't parse — try again';
+        }
+      };
+
+      recog.onerror = (e) => {
+        statusEl.className = 'voice-status error';
+        statusEl.textContent = e.error === 'not-allowed'
+          ? '🚫 Microphone permission denied'
+          : '⚠️ Error: ' + e.error;
+      };
+
+      recog.onend = () => {
+        listening = false;
+        btn.classList.remove('active');
+        btn.textContent = '🎤';
+      };
+
+      recog.start();
+    };
+  })();
+
 </script>
 <!-- ── Page Transition Loader ── -->
 <div id="page-loader" style="

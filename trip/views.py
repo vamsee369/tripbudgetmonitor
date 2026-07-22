@@ -1,5 +1,6 @@
 from decimal import Decimal
 import json
+import os
 import re
 from collections import defaultdict
 from datetime import date, timedelta, timezone as dt_timezone
@@ -1094,6 +1095,81 @@ def heatmap_ajax(request, trip_id):
     month = int(request.GET.get('month', today.month))
     data  = _heatmap_build(trip, year, month)
     return JsonResponse(data)
+
+
+# ── Activity Feed (Timeline) ──────────────────────────────────────────────────
+
+@login_required
+def activity_feed(request, trip_id):
+    """Returns paginated activity feed JSON for a trip."""
+    trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_view(trip, request.user):
+        return JsonResponse({"error": "No access."}, status=403)
+
+    IST = dt_timezone(timedelta(hours=5, minutes=30))
+
+    # Build activity items from expenses, splits, and settlements
+    activities = []
+
+    # Expenses
+    for exp in Expense.objects.filter(trip=trip).order_by('-created_at')[:60]:
+        ist_dt = exp.created_at.astimezone(IST)
+        cat_icons = {
+            "Accommodation": "🏨", "Transport": "🚗", "Food & Dining": "🍽️",
+            "Drinks": "🍻", "Shopping & Souvenirs": "🛍️", "Emergency / Medical": "🏥",
+            "Activities & Entertainment": "🎭", "Tips & Service Charges": "💁",
+        }
+        icon = cat_icons.get(exp.category, "💰")
+        activities.append({
+            "type":    "expense",
+            "icon":    icon,
+            "title":   exp.title,
+            "meta":    f"{exp.paid_by} paid ₹{exp.amount}",
+            "sub":     exp.category,
+            "time_ts": exp.created_at.timestamp(),
+            "time":    ist_dt.strftime("%d %b, %I:%M %p"),
+            "amount":  float(exp.amount),
+            "color":   "expense",
+        })
+
+    # Split bills
+    for split in SplitBill.objects.filter(trip=trip).order_by('-created_at')[:20]:
+        ist_dt = split.created_at.astimezone(IST)
+        activities.append({
+            "type":    "split",
+            "icon":    "🔀",
+            "title":   f"Split: {split.title}",
+            "meta":    f"{split.paid_by} split ₹{split.total_amount} ({split.split_type})",
+            "sub":     f"{split.entries.count()} people",
+            "time_ts": split.created_at.timestamp(),
+            "time":    ist_dt.strftime("%d %b, %I:%M %p"),
+            "amount":  float(split.total_amount),
+            "color":   "split",
+        })
+
+    # Settlements
+    for pay in SettlementPayment.objects.filter(trip=trip).order_by('-created_at')[:20]:
+        ist_dt = pay.created_at.astimezone(IST)
+        activities.append({
+            "type":    "settlement",
+            "icon":    "✅",
+            "title":   "Settlement Paid",
+            "meta":    f"{pay.from_person} → {pay.to_person}: ₹{pay.amount}",
+            "sub":     "Marked as paid",
+            "time_ts": pay.created_at.timestamp(),
+            "time":    ist_dt.strftime("%d %b, %I:%M %p"),
+            "amount":  float(pay.amount),
+            "color":   "settlement",
+        })
+
+    # Sort all by timestamp desc
+    activities.sort(key=lambda x: x["time_ts"], reverse=True)
+    # Remove timestamp (not needed on client)
+    for a in activities:
+        del a["time_ts"]
+
+    return JsonResponse({"activities": activities[:50]})
+
 def loading_view(request):
     next_url    = request.GET.get('next', '/')
     redirect_ms = int(request.GET.get('ms', 800))
