@@ -9,7 +9,6 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.http import JsonResponse, HttpResponse
-from django.views.decorators.csrf import csrf_exempt
 from io import BytesIO
 
 from django.db import models as db_models
@@ -18,7 +17,13 @@ from django.core.exceptions import PermissionDenied
 from .models import Trip, Expense, SplitBill, SplitEntry, SettlementPayment, TripCollaborator
 
 import pytesseract
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+import platform as _platform
+_tesseract_env = os.environ.get("TESSERACT_PATH", "")
+if _tesseract_env:
+    pytesseract.pytesseract.tesseract_cmd = _tesseract_env
+elif _platform.system() == "Windows":
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# On Linux/Render: tesseract is in $PATH — no override needed
 
 
 # ── Access control helpers ─────────────────────────────────────────────────────
@@ -84,19 +89,9 @@ def home(request):
 
 
 # ── Login ─────────────────────────────────────────────────────────────────────
-
-def login_view(request):
-    if request.method == "POST":
-        username = request.POST.get("username")
-        password = request.POST.get("password")
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            login(request, user)
-            next_url = request.GET.get('next', 'home')
-            return redirect(next_url)
-        else:
-            return render(request, "accounts/login.html", {"error": "Invalid username or password"})
-    return render(request, "accounts/login.html")
+# login_view has been removed from trip/views.py — it was a duplicate of
+# accounts/views.login_view. The trip/urls.py path('login/') now delegates
+# to accounts.views so there is a single authoritative login implementation.
 
 
 # ── Make trip ─────────────────────────────────────────────────────────────────
