@@ -594,97 +594,179 @@
     let recog      = null;
     let listening  = false;
 
-    // Category keyword map
-    const catMap = {
-      'hotel': 'Accommodation', 'accommodation': 'Accommodation', 'room': 'Accommodation', 'stay': 'Accommodation',
-      'taxi': 'Transport', 'auto': 'Transport', 'bus': 'Transport', 'train': 'Transport', 'transport': 'Transport',
-      'cab': 'Transport', 'flight': 'Transport', 'uber': 'Transport', 'ola': 'Transport',
-      'food': 'Food & Dining', 'lunch': 'Food & Dining', 'dinner': 'Food & Dining', 'breakfast': 'Food & Dining',
-      'restaurant': 'Food & Dining', 'meal': 'Food & Dining', 'biryani': 'Food & Dining', 'snacks': 'Food & Dining',
-      'drinks': 'Drinks', 'beer': 'Drinks', 'chai': 'Drinks', 'coffee': 'Drinks', 'juice': 'Drinks',
-      'shopping': 'Shopping & Souvenirs', 'souvenir': 'Shopping & Souvenirs', 'clothes': 'Shopping & Souvenirs',
-      'medical': 'Emergency / Medical', 'medicine': 'Emergency / Medical', 'hospital': 'Emergency / Medical',
-      'emergency': 'Emergency / Medical', 'pharmacy': 'Emergency / Medical',
-      'activity': 'Activities & Entertainment', 'ticket': 'Activities & Entertainment',
-      'entry': 'Activities & Entertainment', 'show': 'Activities & Entertainment',
-      'tip': 'Tips & Service Charges', 'tips': 'Tips & Service Charges',
+    // ── Category keyword map (array so order is preserved; longer phrases first)
+    const catMap = [
+      ['food & dining', 'Food & Dining'], ['activities & entertainment', 'Activities & Entertainment'],
+      ['shopping & souvenirs', 'Shopping & Souvenirs'], ['tips & service', 'Tips & Service Charges'],
+      ['emergency', 'Emergency / Medical'], ['medical', 'Emergency / Medical'],
+      ['hotel', 'Accommodation'], ['accommodation', 'Accommodation'],
+      ['room', 'Accommodation'], ['stay', 'Accommodation'], ['lodge', 'Accommodation'], ['hostel', 'Accommodation'],
+      ['taxi', 'Transport'], ['auto', 'Transport'], ['bus', 'Transport'], ['train', 'Transport'],
+      ['transport', 'Transport'], ['cab', 'Transport'], ['flight', 'Transport'],
+      ['uber', 'Transport'], ['ola', 'Transport'], ['metro', 'Transport'], ['rickshaw', 'Transport'],
+      ['food', 'Food & Dining'], ['lunch', 'Food & Dining'], ['dinner', 'Food & Dining'],
+      ['breakfast', 'Food & Dining'], ['restaurant', 'Food & Dining'], ['meal', 'Food & Dining'],
+      ['biryani', 'Food & Dining'], ['snacks', 'Food & Dining'], ['pizza', 'Food & Dining'],
+      ['burger', 'Food & Dining'], ['dosa', 'Food & Dining'], ['thali', 'Food & Dining'],
+      ['drinks', 'Drinks'], ['beer', 'Drinks'], ['chai', 'Drinks'], ['tea', 'Drinks'],
+      ['coffee', 'Drinks'], ['juice', 'Drinks'],
+      ['shopping', 'Shopping & Souvenirs'], ['souvenir', 'Shopping & Souvenirs'],
+      ['clothes', 'Shopping & Souvenirs'], ['shirt', 'Shopping & Souvenirs'],
+      ['medicine', 'Emergency / Medical'], ['hospital', 'Emergency / Medical'], ['pharmacy', 'Emergency / Medical'],
+      ['activity', 'Activities & Entertainment'], ['ticket', 'Activities & Entertainment'],
+      ['show', 'Activities & Entertainment'], ['movie', 'Activities & Entertainment'],
+      ['museum', 'Activities & Entertainment'], ['entry', 'Activities & Entertainment'],
+      ['tip', 'Tips & Service Charges'], ['tips', 'Tips & Service Charges'],
+    ];
+
+    // ── Payment keyword map (array; longer/more-specific phrases first)
+    const payMap = [
+      ['google pay', 'UPI'], ['phone pe', 'UPI'], ['phonepe', 'UPI'],
+      ['gpay', 'UPI'], ['paytm', 'UPI'], ['bhim', 'UPI'],
+      ['upi', 'UPI'], ['online', 'UPI'], ['net banking', 'UPI'],
+      ['debit card', 'Card'], ['credit card', 'Card'],
+      ['card', 'Card'], ['swipe', 'Card'],
+      ['cash', 'Cash'], ['notes', 'Cash'], ['note', 'Cash'],
+    ];
+
+    // Payment-mode words to exclude from "paid by" name detection
+    const payKeywords = new Set([
+      'upi','cash','card','gpay','phonepe','paytm','online','bhim','swipe',
+      'debit','credit','google','phone','net','banking','notes','note'
+    ]);
+
+    // Word-to-number helper for spoken amounts like "five hundred fifty"
+    const wordNums = {
+      'zero':0,'one':1,'two':2,'three':3,'four':4,'five':5,'six':6,'seven':7,
+      'eight':8,'nine':9,'ten':10,'eleven':11,'twelve':12,'thirteen':13,'fourteen':14,
+      'fifteen':15,'sixteen':16,'seventeen':17,'eighteen':18,'nineteen':19,
+      'twenty':20,'thirty':30,'forty':40,'fifty':50,'sixty':60,'seventy':70,
+      'eighty':80,'ninety':90,'hundred':100,'thousand':1000,'lakh':100000,'lakhs':100000,
     };
-
-    // Payment keyword map
-    const payMap = {
-      'upi': 'UPI', 'gpay': 'UPI', 'phonepe': 'UPI', 'paytm': 'UPI', 'online': 'UPI', 'google pay': 'UPI',
-      'cash': 'Cash', 'note': 'Cash', 'notes': 'Cash',
-      'card': 'Card', 'debit': 'Card', 'credit': 'Card', 'swipe': 'Card',
-    };
-
-    function parseVoice(text) {
-      const t   = text.toLowerCase().trim();
-      const res = {};
-
-      // Amount: "500 rupees", "₹500", "five hundred", number alone
-      const amtMatch = t.match(/(\d[\d,]*(?:\.\d{1,2})?)\s*(?:rupees?|rs\.?|₹)?/i)
-                    || t.match(/(?:rupees?|rs\.?|₹)\s*(\d[\d,]*(?:\.\d{1,2})?)/i);
-      if (amtMatch) res.amount = amtMatch[1].replace(/,/g, '');
-
-      // Category from keywords
-      for (const [kw, cat] of Object.entries(catMap)) {
-        if (t.includes(kw)) { res.category = cat; break; }
+    function wordsToNum(str) {
+      const words = str.toLowerCase().split(/\s+/);
+      let total = 0, current = 0;
+      for (const w of words) {
+        if (wordNums[w] !== undefined) {
+          const n = wordNums[w];
+          if (n === 100) current *= 100;
+          else if (n >= 1000) { total += (current || 1) * n; current = 0; }
+          else current += n;
+        }
       }
+      return total + current;
+    }
 
-      // Payment mode
-      for (const [kw, mode] of Object.entries(payMap)) {
+    // ── Core parser — handles all natural speech patterns:
+    //    "paid 550 for dinner by UPI"
+    //    "500 rupees for hotel paid by Ravi cash"
+    //    "dinner 300 UPI"
+    //    "Ravi paid 1200 for shopping by card"
+    function parseVoice(rawText) {
+      const res = {};
+      const t = rawText.toLowerCase().trim();
+
+      // 1. Payment mode (detect BEFORE paid_by so "paid by UPI" sets mode, not person)
+      for (const [kw, mode] of payMap) {
         if (t.includes(kw)) { res.payment_mode = mode; break; }
       }
 
-      // Title: everything before "paid by" / "for" / "rupees" stripped
-      const titleMatch = t.match(/(?:for\s+)([a-z &]+?)(?:\s+paid|\s+\d|$)/i)
-                      || t.match(/^([a-z &]{3,30})\s+\d/i);
-      if (titleMatch) {
-        let raw = titleMatch[1].trim();
-        // capitalise first letter of each word
-        res.title = raw.replace(/\b\w/g, c => c.toUpperCase());
+      // 2. Paid by (person name) — various patterns
+      const stopWords = 'by|via|using|with|on|upi|cash|card|gpay|paytm|phonepe|online|for|\\d';
+      const paidByPatterns = [
+        new RegExp('\\bpaid\\s+by\\s+([a-z][a-z ]{1,20}?)(?:\\s+(?:' + stopWords + ')|$)', 'i'),
+        /by\s+([a-z][a-z]{1,15})\s+(?:paid|for|\d)/i,
+        /([a-z][a-z]{2,14})\s+paid/i,
+      ];
+      for (const pat of paidByPatterns) {
+        const m = t.match(pat);
+        if (m) {
+          const candidate = m[1].trim();
+          const firstWord = candidate.split(/\s+/)[0];
+          if (!payKeywords.has(firstWord)) {
+            const opts = Array.from(document.querySelectorAll('select[name="paid_by"] option'));
+            const found = opts.find(o =>
+              o.value.toLowerCase() === candidate.toLowerCase() ||
+              o.value.toLowerCase() === firstWord.toLowerCase()
+            );
+            if (found) { res.paid_by = found.value; break; }
+          }
+        }
       }
 
-      // Paid by: "paid by Ravi" → match participant names
-      const paidByMatch = t.match(/paid\s+by\s+([a-z]+)/i);
-      if (paidByMatch) {
-        const name = paidByMatch[1];
-        // Try to match against actual participant select options
-        const opts = Array.from(document.querySelectorAll('select[name="paid_by"] option'));
-        const found = opts.find(o => o.value.toLowerCase() === name.toLowerCase());
-        if (found) res.paid_by = found.value;
+      // 3. Amount — digit form takes priority, then word form
+      const digitMatch =
+        t.match(/(?:paid|rs\.?|₹|rupees?)\s*(\d[\d,]*(?:\.\d{1,2})?)/i) ||
+        t.match(/(\d[\d,]*(?:\.\d{1,2})?)\s*(?:rupees?|rs\.?|₹)/i) ||
+        t.match(/\b(\d[\d,]{2,}(?:\.\d{1,2})?)\b/) ||
+        t.match(/\b(\d+(?:\.\d{1,2})?)\b/);
+      if (digitMatch) {
+        res.amount = parseFloat(digitMatch[1].replace(/,/g, ''));
+      } else {
+        const wordAmtRe = /\b((?:(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|lakh|lakhs)\s*)+)/i;
+        const wordAmtMatch = t.match(wordAmtRe);
+        if (wordAmtMatch) {
+          const n = wordsToNum(wordAmtMatch[1]);
+          if (n > 0) res.amount = n;
+        }
+      }
+
+      // 4. Category
+      for (const [kw, cat] of catMap) {
+        if (t.includes(kw)) { res.category = cat; break; }
+      }
+
+      // 5. Title — extract "for X" part
+      const forMatch =
+        t.match(/\bfor\s+([a-z][a-z &'-]{1,40}?)(?:\s+(?:paid|by|via|using|with|on|\d|upi|cash|card|gpay|paytm)|$)/i) ||
+        t.match(/\bfor\s+([a-z][a-z &'-]{1,40})/i);
+      if (forMatch) {
+        let raw = forMatch[1].trim().replace(/\s+/g, ' ');
+        raw = raw.replace(/\b(paid|by|via|upi|cash|card|gpay|paytm|phonepe|online)\b.*$/i, '').trim();
+        if (raw.length >= 2) {
+          res.title = raw.replace(/\b\w/g, c => c.toUpperCase());
+        }
+      }
+      // Fallback title from category keyword
+      if (!res.title && res.category) {
+        const catEntry = catMap.find(([kw]) => t.includes(kw));
+        if (catEntry) res.title = catEntry[0].replace(/\b\w/g, c => c.toUpperCase());
       }
 
       return res;
     }
 
     function applyParsed(parsed) {
-      if (parsed.title) {
+      const filled = [];
+      if (parsed.title !== undefined && parsed.title) {
         const el = document.getElementById('id_title');
-        if (el && !el.value) el.value = parsed.title;
+        if (el) { el.value = parsed.title; filled.push('Title'); }
       }
-      if (parsed.amount) {
+      if (parsed.amount !== undefined) {
         const el = document.getElementById('id_amount');
-        if (el && !el.value) el.value = parsed.amount;
+        if (el) { el.value = parsed.amount; filled.push('Amount'); }
       }
       if (parsed.category) {
         const sel = document.getElementById('category-select');
         if (sel) {
           const opt = Array.from(sel.options).find(o => o.value === parsed.category);
-          if (opt) {
-            sel.value = parsed.category;
-            toggleCustom(sel);
-          }
+          if (opt) { sel.value = parsed.category; toggleCustom(sel); filled.push('Category'); }
         }
       }
       if (parsed.payment_mode) {
         const sel = document.querySelector('select[name="payment_mode"]');
-        if (sel) sel.value = parsed.payment_mode;
+        if (sel) {
+          const opt = Array.from(sel.options).find(o =>
+            o.value.toLowerCase() === parsed.payment_mode.toLowerCase()
+          );
+          if (opt) { sel.value = opt.value; filled.push('Payment Mode'); }
+        }
       }
       if (parsed.paid_by) {
         const sel = document.querySelector('select[name="paid_by"]');
-        if (sel) sel.value = parsed.paid_by;
+        if (sel) { sel.value = parsed.paid_by; filled.push('Paid By'); }
       }
+      return filled;
     }
 
     window.toggleVoice = function () {
@@ -696,46 +778,73 @@
       recog = new SpeechRecognition();
       recog.lang = 'en-IN';
       recog.interimResults = true;
-      recog.maxAlternatives = 1;
+      recog.continuous = false;
+      recog.maxAlternatives = 3;
 
       recog.onstart = () => {
         listening = true;
         btn.classList.add('active');
         btn.textContent = '🔴';
         statusEl.className = 'voice-status listening';
-        statusEl.textContent = 'Listening… speak now';
+        statusEl.textContent = 'Listening\u2026 speak now';
       };
 
       recog.onresult = (e) => {
-        const interim = Array.from(e.results).map(r => r[0].transcript).join(' ');
-        statusEl.textContent = '🎤 ' + interim;
-        if (e.results[e.results.length - 1].isFinal) {
-          const final = e.results[e.results.length - 1][0].transcript;
-          const parsed = parseVoice(final);
-          applyParsed(parsed);
+        const interimText = Array.from(e.results).map(r => r[0].transcript).join(' ');
+        statusEl.textContent = '\uD83C\uDF99\uFE0F ' + interimText;
 
-          const filled = Object.keys(parsed).length;
-          statusEl.className = filled ? 'voice-status success' : 'voice-status';
-          statusEl.textContent = filled
-            ? `✅ Filled ${filled} field${filled > 1 ? 's' : ''} — review below`
-            : '⚠️ Couldn't parse — try again';
+        const lastResult = e.results[e.results.length - 1];
+        if (lastResult.isFinal) {
+          // Try all alternatives, pick the one that fills the most fields
+          let bestParsed = {};
+          let bestScore = -1;
+          for (let i = 0; i < lastResult.length; i++) {
+            const candidate = lastResult[i].transcript;
+            const parsed = parseVoice(candidate);
+            const score = Object.keys(parsed).length;
+            if (score > bestScore) { bestScore = score; bestParsed = parsed; }
+          }
+
+          const filledFields = applyParsed(bestParsed);
+
+          if (filledFields.length > 0) {
+            statusEl.className = 'voice-status success';
+            statusEl.textContent = '\u2705 Filled: ' + filledFields.join(', ');
+          } else {
+            statusEl.className = 'voice-status error';
+            statusEl.textContent = '\u26A0\uFE0F Couldn\'t parse — try: "paid 500 for dinner by UPI"';
+          }
         }
       };
 
       recog.onerror = (e) => {
+        listening = false;
+        btn.classList.remove('active');
+        btn.textContent = '\uD83C\uDF99\uFE0F';
         statusEl.className = 'voice-status error';
-        statusEl.textContent = e.error === 'not-allowed'
-          ? '🚫 Microphone permission denied'
-          : '⚠️ Error: ' + e.error;
+        if (e.error === 'not-allowed' || e.error === 'permission-denied') {
+          statusEl.textContent = '\uD83D\uDEAB Mic permission denied — allow mic in browser settings';
+        } else if (e.error === 'no-speech') {
+          statusEl.textContent = '\uD83D\uDD07 No speech detected — tap again and speak clearly';
+        } else if (e.error === 'network') {
+          statusEl.textContent = '\uD83D\uDCF6 Network error — check your internet connection';
+        } else {
+          statusEl.textContent = '\u26A0\uFE0F Error: ' + e.error + ' — please try again';
+        }
       };
 
       recog.onend = () => {
         listening = false;
         btn.classList.remove('active');
-        btn.textContent = '🎤';
+        btn.textContent = '\uD83C\uDF99\uFE0F';
       };
 
-      recog.start();
+      try {
+        recog.start();
+      } catch(err) {
+        statusEl.className = 'voice-status error';
+        statusEl.textContent = '\u26A0\uFE0F Could not start mic: ' + err.message;
+      }
     };
   })();
 
