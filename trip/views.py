@@ -4,7 +4,6 @@ import os
 import re
 from collections import defaultdict
 from datetime import date, timedelta, timezone as dt_timezone
-
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
@@ -379,6 +378,58 @@ def add_expense(request, trip_id):
         "participants": trip.get_participants(),
     })
 
+@login_required
+def sync_offline_expense(request, trip_id):
+    """
+    Receives a single offline-queued expense posted by offline-sync.js.
+    Same fields as add_expense but returns JSON and skips receipt upload
+    (binary blobs can't be stored in IndexedDB reliably on all browsers).
+    """
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "POST required"}, status=405)
+
+    trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_edit(trip, request.user):
+        return JsonResponse({"ok": False, "error": "Permission denied"}, status=403)
+
+    title        = request.POST.get("title", "").strip()
+    amount_str   = request.POST.get("amount", "").strip()
+    paid_by      = request.POST.get("paid_by", "").strip()
+    category     = request.POST.get("category", "").strip()
+    payment_mode = request.POST.get("payment_mode", "").strip()
+
+    if not all([title, amount_str, paid_by, category, payment_mode]):
+        return JsonResponse({"ok": False, "error": "Missing required fields"}, status=400)
+
+    try:
+        amount = float(amount_str)
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "Invalid amount"}, status=400)
+
+    gst_str      = request.POST.get("gst_amount", "").strip()
+    is_recurring = request.POST.get("is_recurring") == "on"
+    recurrence   = request.POST.get("recurrence_type", "") or None
+
+    expense = Expense.objects.create(
+        trip=trip,
+        title=title,
+        amount=amount,
+        paid_by=paid_by,
+        category=category,
+        custom_category=request.POST.get("custom_category", ""),
+        payment_mode=payment_mode,
+        description=request.POST.get("description", ""),
+        merchant_name=request.POST.get("merchant_name", "").strip() or None,
+        gst_amount=float(gst_str) if gst_str else None,
+        is_recurring=is_recurring,
+        recurrence_type=recurrence if is_recurring else None,
+    )
+
+    return JsonResponse({
+        "ok": True,
+        "expense_id": expense.id,
+        "message": f"Expense '{title}' synced successfully.",
+    })
 
 # ── View / filter expenses ────────────────────────────────────────────────────
 

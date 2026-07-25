@@ -1,13 +1,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// TripBudgetMonitor Service Worker
+// TripBudgetMonitor Service Worker  v10  (Offline Expense Sync)
 // Strategy:
 //   • Read-only pages  → Network-first, cache fallback (served offline)
 //   • Write pages      → Network-only (never cached, show offline page if down)
 //   • Static assets    → Cache-first, network fallback
 //   • API/AJAX         → Network-first, cached JSON fallback
+//   • Background Sync  → Notify clients to flush IndexedDB queue when online
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CACHE_NAME = "tripbudget-v9";
+const CACHE_NAME = "tripbudget-v12";
 
 // Static files pre-cached at install time
 const PRECACHE_ASSETS = [
@@ -18,10 +19,6 @@ const PRECACHE_ASSETS = [
 
 // ── URL Classification ────────────────────────────────────────────────────────
 
-/**
- * Pages that mutate the database — never cache, never serve offline.
- * Matched by exact path or regex pattern.
- */
 const WRITE_PAGE_PATTERNS = [
   /^\/make-trip\/?$/,
   /^\/login\/?$/,
@@ -34,12 +31,10 @@ const WRITE_PAGE_PATTERNS = [
   /^\/trip\/\d+\/ocr-receipt\/?$/,
   /^\/trip\/\d+\/settlement\/mark-paid\/?$/,
   /^\/trip\/\d+\/settlement\/unmark-paid\/\d+\/?$/,
+  /^\/trip\/\d+\/sync-offline-expense\/?$/,
   /^\/admin\//,
 ];
 
-/**
- * Read-only pages — cache with Network-first strategy so offline works.
- */
 const READ_PAGE_PATTERNS = [
   /^\/$/,
   /^\/trip-history\/?$/,
@@ -67,7 +62,6 @@ function isReadPage(pathname) {
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      // Pre-cache static assets (non-fatal if one fails)
       await Promise.all(
         PRECACHE_ASSETS.map(async (url) => {
           try {
@@ -80,7 +74,6 @@ self.addEventListener("install", (event) => {
         })
       );
 
-      // Pre-cache the offline fallback page
       try {
         const offlineRes = await fetch("/offline/");
         if (offlineRes.ok) await cache.put("/offline/", offlineRes);
@@ -88,7 +81,6 @@ self.addEventListener("install", (event) => {
         console.warn("[SW] could not cache offline page:", e);
       }
 
-      // Pre-cache the home page
       try {
         const homeRes = await fetch("/");
         if (homeRes.ok) await cache.put("/", homeRes);
@@ -118,21 +110,47 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// ── Background Sync ───────────────────────────────────────────────────────────
+
+self.addEventListener("sync", (event) => {
+  if (event.tag === "sync-offline-expenses") {
+    event.waitUntil(notifyClientsToSync());
+  }
+});
+
+async function notifyClientsToSync() {
+  const clients = await self.clients.matchAll({
+    type: "window",
+    includeUncontrolled: true,
+  });
+  for (const client of clients) {
+    client.postMessage({ type: "SYNC_OFFLINE_EXPENSES" });
+  }
+}
+
+// ── Message from page ─────────────────────────────────────────────────────────
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "REGISTER_SYNC") {
+    self.registration.sync
+      .register("sync-offline-expenses")
+      .catch(() => {
+        // Background Sync not supported — page handles it via online event
+      });
+  }
+});
+
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Only intercept same-origin requests
   if (url.origin !== self.location.origin) return;
-
-  // Never intercept non-GET requests (POST/PUT/DELETE go straight to network)
   if (request.method !== "GET") return;
 
   const { pathname } = url;
 
-  // ── 1. AJAX / heatmap data endpoints → Network-first, cached JSON fallback
   if (
     pathname.startsWith("/api/") ||
     pathname.endsWith("/heatmap-ajax/")
@@ -141,43 +159,31 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // ── 2. HTML page requests
   if (request.destination === "document") {
     if (isWritePage(pathname)) {
-      // Write pages → pure network; if offline show the offline page
       event.respondWith(networkOnlyWithOfflineFallback(request));
     } else if (isReadPage(pathname)) {
-      // Read pages → network-first, update cache, serve stale if offline
       event.respondWith(networkFirstPage(request));
     } else {
-      // Unknown page → same as read page (safe default)
       event.respondWith(networkFirstPage(request));
     }
     return;
   }
 
-  // ── 3. Static assets (JS, CSS, images, fonts) → Cache-first
   event.respondWith(cacheFirstAsset(request));
 });
 
 // ── Strategy Helpers ──────────────────────────────────────────────────────────
 
-/**
- * Network-first for HTML read pages.
- * On success: update cache silently.
- * On failure: serve cached version or /offline/.
- */
 async function networkFirstPage(request) {
   const cache = await caches.open(CACHE_NAME);
   try {
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
-      // Clone before consuming — store fresh copy in cache
       cache.put(request, networkResponse.clone());
     }
     return networkResponse;
   } catch {
-    // Offline — try exact URL first, then homepage, then offline page
     const cached =
       (await cache.match(request)) ||
       (await cache.match("/")) ||
@@ -191,10 +197,6 @@ async function networkFirstPage(request) {
   }
 }
 
-/**
- * Network-only for write pages.
- * If offline, show /offline/ — never a stale write form.
- */
 async function networkOnlyWithOfflineFallback(request) {
   try {
     return await fetch(request);
@@ -210,10 +212,6 @@ async function networkOnlyWithOfflineFallback(request) {
   }
 }
 
-/**
- * Cache-first for static assets (CSS, JS, images).
- * Falls back to network, then caches any fresh response.
- */
 async function cacheFirstAsset(request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(request);
@@ -226,15 +224,10 @@ async function cacheFirstAsset(request) {
     }
     return networkResponse;
   } catch {
-    // Truly offline and not cached — nothing we can do for assets
     return new Response("", { status: 408 });
   }
 }
 
-/**
- * Network-first for JSON/AJAX endpoints.
- * Falls back to last cached response, then empty array.
- */
 async function networkFirstJSON(request) {
   const cache = await caches.open(CACHE_NAME);
   try {
@@ -254,9 +247,6 @@ async function networkFirstJSON(request) {
   }
 }
 
-/**
- * Inline minimal offline HTML in case even /offline/ isn't cached yet.
- */
 function offlineFallbackHTML() {
   return `<!DOCTYPE html>
 <html lang="en">

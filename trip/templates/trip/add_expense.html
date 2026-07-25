@@ -942,5 +942,149 @@
   });
 })();
 </script>
+
+<script src="{% static 'offline-sync.js' %}"></script>
+
+<script>
+(function () {
+  // ── Offline banner ────────────────────────────────────────────────────────
+  const offlineBanner = document.createElement('div');
+  offlineBanner.id = 'offline-banner';
+  offlineBanner.innerHTML = '📶 You\'re offline — expense will be saved and synced when you reconnect.';
+  Object.assign(offlineBanner.style, {
+    display:      'none',
+    position:     'fixed',
+    top:          '0',
+    left:         '0',
+    right:        '0',
+    zIndex:       '10000',
+    background:   '#f59e0b',
+    color:        '#1f2937',
+    textAlign:    'center',
+    padding:      '10px 16px',
+    fontWeight:   '600',
+    fontSize:     '0.88rem',
+    letterSpacing: '0.01em',
+  });
+  document.body.prepend(offlineBanner);
+
+  function updateBanner() {
+    offlineBanner.style.display = navigator.onLine ? 'none' : 'block';
+  }
+  updateBanner();
+  window.addEventListener('online',  updateBanner);
+  window.addEventListener('offline', updateBanner);
+
+  // ── Intercept form submit ─────────────────────────────────────────────────
+  const form   = document.getElementById('expense-form');
+  const tripId = {{ trip.id }};   // Django template variable
+
+  if (form && window.TBMOfflineSync) {
+
+    // Listen for SW messages (Background Sync callback)
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'SYNC_OFFLINE_EXPENSES') {
+          TBMOfflineSync.syncPendingExpenses();
+        }
+      });
+    }
+
+    form.addEventListener('submit', async function (e) {
+      // If online, let the normal form POST through — nothing changes
+      if (navigator.onLine) return;
+
+      // We are OFFLINE — prevent the normal POST
+      e.preventDefault();
+      e.stopImmediatePropagation();   // prevent the loading-screen submit handler too
+
+      const formData = new FormData(form);
+
+      // Warn if a receipt was attached (we can't store files offline)
+      const receiptFile = document.getElementById('receipt-file');
+      if (receiptFile && receiptFile.files && receiptFile.files.length > 0) {
+        const warnEl = document.getElementById('offline-receipt-warn') || (() => {
+          const el = document.createElement('p');
+          el.id = 'offline-receipt-warn';
+          Object.assign(el.style, {
+            color: '#ef4444', fontWeight: '600', fontSize: '0.85rem',
+            marginTop: '8px', textAlign: 'center',
+          });
+          form.appendChild(el);
+          return el;
+        })();
+        warnEl.textContent = '⚠️ Receipt attachment will not be saved offline — the rest will sync.';
+      }
+
+      try {
+        const localId = await TBMOfflineSync.savePendingExpense(tripId, formData);
+        console.log('[OfflineSync] Saved locally with id', localId);
+
+        // Register Background Sync if supported
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'REGISTER_SYNC' });
+        }
+
+        // Show success feedback in the form
+        showOfflineSaveSuccess();
+
+      } catch (err) {
+        console.error('[OfflineSync] Failed to save locally:', err);
+        alert('Could not save expense offline. Please try again.');
+      }
+    }, true);  // capture phase — runs before the loading-screen handler
+  }
+
+  // ── Success UI after offline save ─────────────────────────────────────────
+  function showOfflineSaveSuccess() {
+    // Hide the form fields, show a confirmation card
+    const card = document.createElement('div');
+    Object.assign(card.style, {
+      background:    '#d1fae5',
+      border:        '1.5px solid #10b981',
+      borderRadius:  '16px',
+      padding:       '2rem',
+      textAlign:     'center',
+      margin:        '1rem 0',
+      animation:     'fadeIn 0.3s ease',
+    });
+    card.innerHTML = `
+      <div style="font-size:2.5rem">💾</div>
+      <h3 style="color:#065f46;margin:.5rem 0 .4rem;font-size:1.1rem">Saved Offline!</h3>
+      <p style="color:#047857;font-size:.88rem;line-height:1.5">
+        Your expense has been stored on this device.<br>
+        It will sync automatically when you're back online.
+      </p>
+      <div style="margin-top:1.2rem;display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap">
+        <a href="/trip/${tripId}/dashboard/"
+           style="background:#10b981;color:#fff;border-radius:10px;padding:.6rem 1.4rem;
+                  font-weight:600;font-size:.9rem;text-decoration:none">
+          ← Back to Dashboard
+        </a>
+        <button onclick="location.reload()"
+                style="background:#fff;color:#065f46;border:1.5px solid #10b981;
+                       border-radius:10px;padding:.6rem 1.4rem;font-weight:600;
+                       font-size:.9rem;cursor:pointer">
+          Add Another
+        </button>
+      </div>
+    `;
+
+    // Replace form content
+    form.innerHTML = '';
+    form.appendChild(card);
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ── Show pending count badge if there are queued expenses ─────────────────
+  if (window.TBMOfflineSync) {
+    TBMOfflineSync.updatePendingBadge(tripId);
+  }
+
+})();
+</script>
+
 </body>
 </html>

@@ -31,4 +31,5 @@ urlpatterns = [
     path('loading/', views.loading_view, name='loading'),
     path('offline/', views.offline_view, name='offline'),
     path('trip/<int:trip_id>/checklist/', views.trip_checklist, name='trip_checklist'),
+    path('trip/<int:trip_id>/sync-offline-expense/', views.sync_offline_expense, name='sync_offline_expense'),
 ]
