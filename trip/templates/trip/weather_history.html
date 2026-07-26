@@ -122,8 +122,27 @@
       </button>
     </form>
     <div class="fetch-note">
-      Uses <strong>Open-Meteo Historical API</strong> data may take a moment to load.
+      Uses <strong>Nominatim API</strong> — data may take a moment to load.
     </div>
+  </div>
+  {% endif %}
+
+  {% if fetch_error %}
+  <div style="background:var(--red-lt);color:var(--red);border:1.5px solid var(--red);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;font-size:.9rem;display:flex;align-items:flex-start;gap:10px;">
+    <i class="ti ti-alert-triangle" style="margin-top:2px;flex-shrink:0;"></i>
+    <span>
+      {{ fetch_error }}
+      {% if can_edit %}
+        <a href="{% url 'edit_trip' trip.id %}" style="color:var(--red);font-weight:700;margin-left:6px;text-decoration:underline;">Edit trip →</a>
+      {% endif %}
+    </span>
+  </div>
+  {% endif %}
+
+  {% if partial_data %}
+  <div style="background:var(--yellow-lt);color:#92400e;border:1.5px solid var(--yellow);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:16px;font-size:.9rem;display:flex;align-items:flex-start;gap:10px;">
+    <i class="ti ti-info-circle" style="margin-top:2px;flex-shrink:0;"></i>
+    <span>Partial data: the most recent days may not be available yet (Open-Meteo archive has a ~5-day lag). The chart shows all days that are currently available.</span>
   </div>
   {% endif %}
 

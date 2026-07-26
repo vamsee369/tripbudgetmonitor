@@ -1382,75 +1382,171 @@ def weather_history(request, trip_id):
     # Only makes sense for completed trips, but we allow viewing for ongoing too.
     weather_data = trip.weather_history or []
 
-    # If owner hits "Fetch Weather" (POST) and no data yet, pull from Open-Meteo
+    # If owner hits "Fetch Weather" (POST), pull from Open-Meteo
+    fetch_error   = None
+    partial_data  = False
     if request.method == 'POST' and user_can_edit(trip, request.user):
         fetched = _fetch_open_meteo_weather(trip)
         if fetched is not None:
             trip.weather_history = fetched
             trip.save(update_fields=['weather_history'])
             weather_data = fetched
+            # Warn if we returned fewer days than the trip duration
+            trip_days = (trip.end_date - trip.start_date).days + 1
+            if len(fetched) < trip_days:
+                partial_data = True
+        else:
+            archive_cutoff = date.today() - timedelta(days=5)
+            if trip.start_date > archive_cutoff:
+                fetch_error = (
+                    f"Weather data for \"{trip.destination}\" is not yet available — "
+                    "the archive has a ~5-day lag. Come back after "
+                    f"{archive_cutoff.strftime('%d %b %Y')} to fetch the full data."
+                )
+            else:
+                fetch_error = (
+                    f"Could not locate \"{trip.destination}\" on the map. "
+                    "Try editing the trip and using a more specific place name "
+                    "(e.g. \"Chennai\" instead of \"Tamil Nadu\", or \"Manali, Himachal Pradesh\")."
+                )
 
     return render(request, 'trip/weather_history.html', {
         'trip':         trip,
         'weather_data': weather_data,
         'can_edit':     user_can_edit(trip, request.user),
         'weather_json': json.dumps(weather_data),
+        'fetch_error':  fetch_error,
+        'partial_data': partial_data,
     })
 
 
-def _fetch_open_meteo_weather(trip):
+def _geocode_destination(destination):
     """
-    Call the free Open-Meteo Historical Weather API.
-    Returns a list of daily dicts or None on failure.
-    Open-Meteo geocoding: first geocode the destination, then pull daily weather.
-    Uses only the standard library so no extra pip install required.
+    Geocode a destination string to (lat, lon) using Nominatim (OpenStreetMap).
+    Nominatim handles city names, state names, regions, and country names — far
+    more robust than Open-Meteo's own geocoding endpoint which is city-only.
+
+    Tries multiple query variations so that broad names like "Tamil Nadu" or
+    "Rajasthan" work just as well as "Chennai" or "Jaipur".
+
+    Returns (lat, lon) floats or raises ValueError if nothing matches.
     """
     import urllib.request
     import urllib.parse
 
-    destination = trip.destination.strip()
-    start       = trip.start_date.isoformat()
-    end         = trip.end_date.isoformat()
+    # Build a list of queries to try in order, from most specific to broadest.
+    queries = [destination]
+    # If destination has no comma (i.e. not already "City, Country"), also try
+    # appending ", India" as a hint — most trips in this app are Indian.
+    if ',' not in destination:
+        queries.append(destination + ', India')
+    # If it looks like "City - State" or "City / Region", try just the first part.
+    for sep in (' - ', ' / ', ' | '):
+        if sep in destination:
+            queries.append(destination.split(sep)[0].strip())
+            break
 
-    # 1. Geocode via Open-Meteo's free geocoding endpoint
-    geo_url = (
-        "https://geocoding-api.open-meteo.com/v1/search?"
-        + urllib.parse.urlencode({'name': destination, 'count': 1, 'language': 'en', 'format': 'json'})
-    )
-    try:
-        with urllib.request.urlopen(geo_url, timeout=8) as r:
-            geo = json.loads(r.read())
-        results = geo.get('results') or []
-        if not results:
-            return None
-        lat = results[0]['latitude']
-        lon = results[0]['longitude']
-    except Exception:
+    headers = {
+        'User-Agent': 'TripBudgetMonitor/1.0 (trip expense tracker)',
+        'Accept-Language': 'en',
+    }
+
+    for query in queries:
+        url = (
+            'https://nominatim.openstreetmap.org/search?'
+            + urllib.parse.urlencode({
+                'q':              query,
+                'format':         'json',
+                'limit':          1,
+                'addressdetails': 0,
+            })
+        )
+        req = urllib.request.Request(url, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                results = json.loads(r.read())
+            if results:
+                return float(results[0]['lat']), float(results[0]['lon'])
+        except Exception:
+            continue  # try next variation
+
+    raise ValueError(f"Could not geocode destination: {destination!r}")
+
+
+def _fetch_open_meteo_weather(trip):
+    """
+    Geocode the trip destination via Nominatim then pull historical daily weather
+    from the Open-Meteo archive API. Returns a list of daily dicts or None on
+    failure.
+
+    Robustness notes:
+    - Nominatim handles city names, state names ('Tamil Nadu'), regions, countries.
+    - The archive API has a ~5-day data lag; end_date is clamped automatically so
+      recent/ongoing trips return partial data instead of an empty result.
+    - Both 'weather_code' and the legacy 'weathercode' field names are supported.
+    """
+    import urllib.request
+    import urllib.parse
+    import logging
+    logger = logging.getLogger(__name__)
+
+    destination = trip.destination.strip()
+    start_dt    = trip.start_date
+    end_dt      = trip.end_date
+
+    # ── Clamp end_date to archive availability window (~5-day lag) ──────────
+    archive_cutoff = date.today() - timedelta(days=5)
+    if end_dt > archive_cutoff:
+        end_dt = archive_cutoff
+
+    if start_dt > archive_cutoff:
+        logger.warning(
+            "Weather fetch skipped for trip %s: start_date %s is within the "
+            "5-day archive lag window.", trip.id, start_dt
+        )
         return None
 
-    # 2. Fetch historical daily weather
+    start = start_dt.isoformat()
+    end   = end_dt.isoformat()
+
+    # ── 1. Geocode destination via Nominatim (OpenStreetMap) ─────────────────
+    try:
+        lat, lon = _geocode_destination(destination)
+        logger.info("Geocoded '%s' → lat=%.4f lon=%.4f", destination, lat, lon)
+    except ValueError as exc:
+        logger.warning("Geocoding failed for trip %s: %s", trip.id, exc)
+        return None
+    except Exception as exc:
+        logger.exception("Unexpected geocoding error for trip %s: %s", trip.id, exc)
+        return None
+
+    # ── 2. Fetch historical daily weather from Open-Meteo archive ────────────
     wx_url = (
         "https://archive-api.open-meteo.com/v1/archive?"
         + urllib.parse.urlencode({
-            'latitude':        lat,
-            'longitude':       lon,
-            'start_date':      start,
-            'end_date':        end,
-            'daily':           'weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max',
-            'timezone':        'auto',
-            'format':          'json',
+            'latitude':   lat,
+            'longitude':  lon,
+            'start_date': start,
+            'end_date':   end,
+            # Request both field name variants; the API returns whichever it uses.
+            'daily':      'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max',
+            'timezone':   'auto',
+            'format':     'json',
         })
     )
+    headers = {'User-Agent': 'TripBudgetMonitor/1.0'}
+    req = urllib.request.Request(wx_url, headers=headers)
     try:
-        with urllib.request.urlopen(wx_url, timeout=12) as r:
+        with urllib.request.urlopen(req, timeout=15) as r:
             wx = json.loads(r.read())
         daily = wx.get('daily', {})
-        dates        = daily.get('time', [])
-        codes        = daily.get('weathercode', [])
-        temp_max     = daily.get('temperature_2m_max', [])
-        temp_min     = daily.get('temperature_2m_min', [])
-        precip       = daily.get('precipitation_sum', [])
-        wind         = daily.get('windspeed_10m_max', [])
+        dates    = daily.get('time', [])
+        # Support both the current 'weather_code' and the legacy 'weathercode' field.
+        codes    = daily.get('weather_code', daily.get('weathercode', []))
+        temp_max = daily.get('temperature_2m_max', [])
+        temp_min = daily.get('temperature_2m_min', [])
+        precip   = daily.get('precipitation_sum', [])
+        wind     = daily.get('windspeed_10m_max', [])
 
         records = []
         for i, d in enumerate(dates):
@@ -1465,8 +1561,17 @@ def _fetch_open_meteo_weather(trip):
                 'precip':   precip[i]   if i < len(precip)   else None,
                 'wind':     wind[i]     if i < len(wind)      else None,
             })
+        if not records:
+            logger.warning(
+                "Open-Meteo returned no daily records for trip %s "
+                "(lat=%.4f lon=%.4f start=%s end=%s). "
+                "The date range may be outside the archive window.",
+                trip.id, lat, lon, start, end
+            )
+            return None
         return records
-    except Exception:
+    except Exception as exc:
+        logger.exception("Open-Meteo archive fetch failed for trip %s: %s", trip.id, exc)
         return None
 
 
