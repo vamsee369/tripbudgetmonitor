@@ -17,6 +17,9 @@ class Trip(models.Model):
     # ✅ NEW — Member birthdays, stored as {"Name": "MM-DD"} JSON
     member_birthdays = models.TextField(default="{}", blank=True)
 
+    # ── Feature 13: Weather History (stored after trip completes) ─────────────
+    weather_history = models.JSONField(default=list, blank=True)
+
     def get_participants(self):
         """Return participants as a clean list (no empty strings)."""
         try:
@@ -105,6 +108,11 @@ class Expense(models.Model):
         max_length=10, choices=RECURRENCE_CHOICES, blank=True, null=True
     )
     is_favorite = models.BooleanField(default=False)
+
+    # ── Feature 12: GPS Location ─────────────────────────────────────────────
+    latitude      = models.DecimalField(max_digits=9,  decimal_places=6, null=True, blank=True)
+    longitude     = models.DecimalField(max_digits=9,  decimal_places=6, null=True, blank=True)
+    location_name = models.CharField(max_length=300, blank=True, null=True)
     # ✅ Timestamp — auto-set at creation, never changes
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)       # updates every save

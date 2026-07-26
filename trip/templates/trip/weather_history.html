@@ -1,0 +1,313 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Weather History — {{ trip.name }}</title>
+  <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon"/>
+  <link rel="manifest" href="{% static 'manifest.json' %}"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f0f4f8; --white: #ffffff; --surface: #f8f9ff; --border: #e5e7eb;
+      --accent: #6366f1; --accent-lt: #eef2ff; --accent-md: #c7d2fe;
+      --green: #10b981; --green-lt: #d1fae5;
+      --red: #ef4444; --red-lt: #fee2e2;
+      --yellow: #f59e0b; --yellow-lt: #fef3c7;
+      --sky: #0ea5e9; --sky-lt: #e0f2fe;
+      --orange: #f97316; --orange-lt: #ffedd5;
+      --text: #1f2937; --text-md: #374151; --muted: #6b7280; --muted-lt: #9ca3af;
+      --radius: 16px; --radius-sm: 10px;
+      --shadow: 0 4px 24px rgba(0,0,0,.07); --shadow-sm: 0 2px 8px rgba(0,0,0,.05);
+    }
+    [data-theme="dark"] {
+      --bg: #0f1117; --white: #1a1d27; --surface: #1e2130; --border: #2d3148;
+      --accent: #818cf8; --accent-lt: #1e2040; --accent-md: #4338ca;
+      --green: #34d399; --green-lt: #064e3b;
+      --red: #f87171; --red-lt: #450a0a;
+      --yellow: #fbbf24; --yellow-lt: #451a03;
+      --sky: #38bdf8; --sky-lt: #0c4a6e;
+      --orange: #fb923c; --orange-lt: #431407;
+      --text: #e5e7eb; --text-md: #d1d5db; --muted: #9ca3af; --muted-lt: #6b7280;
+      --shadow: 0 4px 24px rgba(0,0,0,.4); --shadow-sm: 0 2px 8px rgba(0,0,0,.3);
+    }
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* Topbar */
+    .topbar { background: var(--white); border-bottom: 1.5px solid var(--border); padding: 14px 16px; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; gap: 12px; }
+    .back-btn { display: flex; align-items: center; gap: 6px; background: var(--accent-lt); color: var(--accent); border: none; border-radius: var(--radius-sm); padding: 8px 14px; font-weight: 600; font-size: .9rem; cursor: pointer; text-decoration: none; }
+    .topbar-title { font-size: 1rem; font-weight: 700; flex: 1; }
+    .theme-btn { background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 10px; cursor: pointer; font-size: 1rem; color: var(--text); }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 20px 16px 40px; }
+
+    /* Trip hero */
+    .trip-hero { background: var(--white); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
+    .trip-hero h2 { font-size: 1.2rem; font-weight: 800; margin-bottom: 6px; }
+    .trip-meta { display: flex; gap: 16px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); }
+    .trip-meta span { display: flex; align-items: center; gap: 4px; }
+
+    /* Fetch button */
+    .fetch-section { margin-bottom: 20px; }
+    .btn-fetch { display: inline-flex; align-items: center; gap: 8px; background: var(--sky); color: #fff; border: none; border-radius: var(--radius-sm); padding: 12px 22px; font-weight: 700; font-size: .95rem; cursor: pointer; box-shadow: 0 2px 8px rgba(14,165,233,.25); transition: opacity .2s; }
+    .btn-fetch:hover { opacity: .88; }
+    .btn-fetch:disabled { opacity: .55; cursor: not-allowed; }
+    .fetch-note { font-size: .8rem; color: var(--muted); margin-top: 8px; }
+
+    /* Summary pills */
+    .summary-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    .summary-pill { display: flex; align-items: center; gap: 8px; background: var(--white); border: 1.5px solid var(--border); border-radius: 50px; padding: 8px 16px; font-size: .85rem; font-weight: 600; box-shadow: var(--shadow-sm); }
+    .summary-pill .icon { font-size: 1.1rem; }
+
+    /* Chart card */
+    .chart-card { background: var(--white); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
+    .card-title { font-size: .9rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 14px; }
+
+    /* Daily grid */
+    .daily-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .day-card { background: var(--white); border-radius: var(--radius-sm); padding: 14px 12px; border: 1.5px solid var(--border); box-shadow: var(--shadow-sm); text-align: center; transition: transform .15s, box-shadow .15s; }
+    .day-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+    .day-card.rainy  { border-color: var(--sky);    background: var(--sky-lt); }
+    .day-card.snowy  { border-color: #6366f1;       background: var(--accent-lt); }
+    .day-card.stormy { border-color: var(--orange);  background: var(--orange-lt); }
+    .day-card.sunny  { border-color: var(--yellow);  background: var(--yellow-lt); }
+    .day-date { font-size: .7rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+    .day-icon { font-size: 2rem; margin-bottom: 4px; }
+    .day-label { font-size: .72rem; color: var(--text-md); font-weight: 600; margin-bottom: 8px; line-height: 1.3; }
+    .temp-row { display: flex; justify-content: center; gap: 6px; font-size: .78rem; font-weight: 700; }
+    .temp-max { color: var(--red); }
+    .temp-min { color: var(--sky); }
+    .day-precip { font-size: .7rem; color: var(--muted); margin-top: 4px; }
+
+    /* Empty state */
+    .empty-state { background: var(--white); border-radius: var(--radius); padding: 48px 24px; text-align: center; border: 2px dashed var(--border); }
+    .empty-state .big-icon { font-size: 4rem; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+    .empty-state p { color: var(--muted); font-size: .9rem; }
+  </style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <a href="{% url 'trip_dashboard' trip.id %}" class="back-btn">
+    <i class="ti ti-arrow-left"></i> Dashboard
+  </a>
+  <span class="topbar-title">🌤️ Weather History</span>
+  <button class="theme-btn" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
+</div>
+
+<div class="container">
+
+  <!-- Trip card -->
+  <div class="trip-hero">
+    <h2>{{ trip.name }}</h2>
+    <div class="trip-meta">
+      <span>📍 {{ trip.destination }}</span>
+      <span>📅 {{ trip.start_date|date:"d M Y" }} – {{ trip.end_date|date:"d M Y" }}</span>
+      <span>🏷️ {{ trip.status }}</span>
+    </div>
+  </div>
+
+  {% if can_edit %}
+  <div class="fetch-section">
+    <form method="post" id="fetch-form">
+      {% csrf_token %}
+      <button type="submit" class="btn-fetch" id="fetch-btn">
+        <i class="ti ti-cloud-download"></i>
+        {% if weather_data %}Refresh Weather Data{% else %}Fetch Weather History{% endif %}
+      </button>
+    </form>
+    <div class="fetch-note">
+      Uses <strong>Open-Meteo Historical API</strong> data may take a moment to load.
+    </div>
+  </div>
+  {% endif %}
+
+  {% if weather_data %}
+  <!-- Summary pills -->
+  {% with weather_data as wd %}
+  <div class="summary-row" id="summary-pills"></div>
+
+  <!-- Temperature chart -->
+  <div class="chart-card">
+    <div class="card-title"><i class="ti ti-temperature"></i> Temperature Overview (°C)</div>
+    <canvas id="temp-chart" height="90"></canvas>
+  </div>
+
+  <!-- Precipitation chart -->
+  <div class="chart-card">
+    <div class="card-title"><i class="ti ti-droplet"></i> Daily Precipitation (mm)</div>
+    <canvas id="precip-chart" height="70"></canvas>
+  </div>
+
+  <!-- Daily cards -->
+  <div class="card-title" style="margin-bottom:12px;"><i class="ti ti-calendar-stats"></i> Day-by-Day Breakdown</div>
+  <div class="daily-grid" id="daily-grid"></div>
+
+  {% endwith %}
+
+  {% else %}
+  <!-- Empty state -->
+  <div class="empty-state">
+    <div class="big-icon">🌡️</div>
+    <h3>No Weather Data Yet</h3>
+    <p>
+      {% if can_edit %}
+        Click <strong>"Fetch Weather History"</strong> above to pull historical weather for
+        <em>{{ trip.destination }}</em> during your trip dates.
+      {% else %}
+        The trip owner hasn't fetched the weather data yet.
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+const WEATHER = {{ weather_json|safe }};
+
+function dayClass(code) {
+  if (!code && code !== 0) return '';
+  if (code === 0 || code === 1) return 'sunny';
+  if (code >= 51 && code <= 67) return 'rainy';
+  if (code >= 71 && code <= 77) return 'snowy';
+  if (code >= 80 && code <= 82) return 'rainy';
+  if (code >= 95) return 'stormy';
+  return '';
+}
+
+function fmtDate(s) {
+  const d = new Date(s + 'T00:00:00');
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+function fmtDateShort(s) {
+  const d = new Date(s + 'T00:00:00');
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+if (WEATHER && WEATHER.length > 0) {
+  // ── Summary pills ─────────────────────────────────────────────────────────
+  const pillsEl = document.getElementById('summary-pills');
+  const codes = WEATHER.map(d => d.code || 0);
+  const rainyDays  = codes.filter(c => (c >= 51 && c <= 67) || (c >= 80 && c <= 82)).length;
+  const sunnyDays  = codes.filter(c => c === 0 || c === 1).length;
+  const snowDays   = codes.filter(c => c >= 71 && c <= 77).length;
+  const stormDays  = codes.filter(c => c >= 95).length;
+  const avgMax     = (WEATHER.reduce((s,d) => s + (d.temp_max || 0), 0) / WEATHER.length).toFixed(1);
+  const avgMin     = (WEATHER.reduce((s,d) => s + (d.temp_min || 0), 0) / WEATHER.length).toFixed(1);
+  const totalPrecip= WEATHER.reduce((s,d) => s + (d.precip || 0), 0).toFixed(1);
+
+  const pills = [
+    { icon:'☀️', label:`${sunnyDays} Sunny day${sunnyDays !== 1 ? 's' : ''}` },
+    { icon:'🌧️', label:`${rainyDays} Rainy day${rainyDays !== 1 ? 's' : ''}` },
+    { icon:'❄️', label:`${snowDays} Snow day${snowDays !== 1 ? 's' : ''}` },
+    { icon:'⛈️', label:`${stormDays} Storm day${stormDays !== 1 ? 's' : ''}` },
+    { icon:'🌡️', label:`Avg max ${avgMax}°C` },
+    { icon:'💧', label:`${totalPrecip} mm total rain` },
+  ].filter(p => {
+    // hide zero-counts for cleaner display
+    if (p.label.startsWith('0 Snow') || p.label.startsWith('0 Storm')) return false;
+    return true;
+  });
+
+  pills.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'summary-pill';
+    div.innerHTML = `<span class="icon">${p.icon}</span> ${p.label}`;
+    pillsEl.appendChild(div);
+  });
+
+  // ── Temperature Chart ─────────────────────────────────────────────────────
+  const labels = WEATHER.map(d => fmtDateShort(d.date));
+  const maxTemps = WEATHER.map(d => d.temp_max);
+  const minTemps = WEATHER.map(d => d.temp_min);
+
+  const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark';
+
+  new Chart(document.getElementById('temp-chart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Max °C', data: maxTemps, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,.1)', tension: .4, fill: false, pointRadius: 3 },
+        { label: 'Min °C', data: minTemps, borderColor: '#0ea5e9', backgroundColor: 'rgba(14,165,233,.1)', tension: .4, fill: false, pointRadius: 3 },
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { title: { display: true, text: '°C' } }
+      }
+    }
+  });
+
+  // ── Precipitation Chart ───────────────────────────────────────────────────
+  const precips = WEATHER.map(d => d.precip || 0);
+  new Chart(document.getElementById('precip-chart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Precipitation (mm)', data: precips,
+          backgroundColor: precips.map(v => v > 10 ? 'rgba(14,165,233,.8)' : 'rgba(14,165,233,.4)'),
+          borderColor: '#0ea5e9', borderWidth: 1, borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, title: { display: true, text: 'mm' } } }
+    }
+  });
+
+  // ── Daily cards ───────────────────────────────────────────────────────────
+  const grid = document.getElementById('daily-grid');
+  WEATHER.forEach(d => {
+    const cls = dayClass(d.code);
+    const div = document.createElement('div');
+    div.className = `day-card ${cls}`;
+    div.innerHTML = `
+      <div class="day-date">${fmtDate(d.date)}</div>
+      <div class="day-icon">${d.icon || '🌡️'}</div>
+      <div class="day-label">${d.label || ''}</div>
+      <div class="temp-row">
+        <span class="temp-max">▲ ${d.temp_max != null ? d.temp_max + '°' : '—'}</span>
+        <span class="temp-min">▼ ${d.temp_min != null ? d.temp_min + '°' : '—'}</span>
+      </div>
+      ${d.precip ? `<div class="day-precip">💧 ${d.precip} mm</div>` : ''}
+      ${d.wind ? `<div class="day-precip">💨 ${d.wind} km/h</div>` : ''}
+    `;
+    grid.appendChild(div);
+  });
+}
+
+// ── Fetch button loading state ────────────────────────────────────────────────
+const fetchForm = document.getElementById('fetch-form');
+if (fetchForm) {
+  fetchForm.addEventListener('submit', () => {
+    const btn = document.getElementById('fetch-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader"></i> Fetching…';
+  });
+}
+
+// ── Theme toggle ──────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const t = document.documentElement.getAttribute('data-theme') === 'dark' ? '' : 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('tbm-theme', t);
+}
+(function() {
+  const saved = localStorage.getItem('tbm-theme') || '';
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+})();
+</script>
+</body>
+</html>

@@ -604,6 +604,7 @@
           <span class="meta-pill">Paid by {{ exp.paid_by }}</span>
           {% if exp.merchant_name %}<span class="meta-pill merch">🏪 {{ exp.merchant_name }}</span>{% endif %}
           {% if exp.description %}<span class="meta-pill">{{ exp.description }}</span>{% endif %}
+          {% if exp.latitude %}<span class="meta-pill" style="background:var(--green-lt,#d1fae5);color:var(--green,#10b981);">📍 {% if exp.location_name %}{{ exp.location_name }}{% else %}{{ exp.latitude|floatformat:4 }}, {{ exp.longitude|floatformat:4 }}{% endif %}</span>{% endif %}
         </div>
         <div class="expense-amount">₹{{ exp.amount }}</div>
         {% if exp.gst_amount %}<div class="gst-line">GST: ₹{{ exp.gst_amount }}</div>{% endif %}

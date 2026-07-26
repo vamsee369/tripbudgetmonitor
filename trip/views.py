@@ -347,6 +347,15 @@ def add_expense(request, trip_id):
         is_recurring = request.POST.get("is_recurring") == "on"
         recurrence   = request.POST.get("recurrence_type", "") or None
 
+        lat_str = request.POST.get('latitude', '').strip()
+        lng_str = request.POST.get('longitude', '').strip()
+        loc_name = request.POST.get('location_name', '').strip() or None
+        try:
+            lat = float(lat_str) if lat_str else None
+            lng = float(lng_str) if lng_str else None
+        except ValueError:
+            lat = lng = None
+
         expense = Expense.objects.create(
             trip=trip,
             title=title,
@@ -360,6 +369,9 @@ def add_expense(request, trip_id):
             gst_amount=float(gst_str) if gst_str else None,
             is_recurring=is_recurring,
             recurrence_type=recurrence if is_recurring else None,
+            latitude=lat,
+            longitude=lng,
+            location_name=loc_name,
         )
 
         receipt = request.FILES.get("receipt")
@@ -1320,3 +1332,171 @@ def trip_checklist(request, trip_id):
         "done": done,
         "percent": percent,
     })
+
+# ── Feature 12: Location Map View ─────────────────────────────────────────────
+
+@login_required
+def expense_map(request, trip_id):
+    """Show all location-tagged expenses for a trip on an interactive map."""
+    trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_view(trip, request.user):
+        raise PermissionDenied("You don't have access to this trip.")
+
+    expenses_with_location = trip.expenses.filter(
+        latitude__isnull=False,
+        longitude__isnull=False
+    ).order_by('-created_at')
+
+    # Serialize for the template / JS
+    expense_data = []
+    for exp in expenses_with_location:
+        expense_data.append({
+            'id':            exp.id,
+            'title':         exp.title,
+            'amount':        float(exp.amount),
+            'category':      exp.category,
+            'paid_by':       exp.paid_by,
+            'location_name': exp.location_name or '',
+            'lat':           float(exp.latitude),
+            'lng':           float(exp.longitude),
+        })
+
+    return render(request, 'trip/expense_map.html', {
+        'trip':         trip,
+        'expense_json': json.dumps(expense_data),
+        'can_edit':     user_can_edit(trip, request.user),
+        'total_tagged': expenses_with_location.count(),
+        'total_expenses': trip.expenses.count(),
+    })
+
+
+# ── Feature 13: Weather History ────────────────────────────────────────────────
+
+@login_required
+def weather_history(request, trip_id):
+    """Display (and optionally fetch) weather history for a completed trip."""
+    trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_view(trip, request.user):
+        raise PermissionDenied("You don't have access to this trip.")
+
+    # Only makes sense for completed trips, but we allow viewing for ongoing too.
+    weather_data = trip.weather_history or []
+
+    # If owner hits "Fetch Weather" (POST) and no data yet, pull from Open-Meteo
+    if request.method == 'POST' and user_can_edit(trip, request.user):
+        fetched = _fetch_open_meteo_weather(trip)
+        if fetched is not None:
+            trip.weather_history = fetched
+            trip.save(update_fields=['weather_history'])
+            weather_data = fetched
+
+    return render(request, 'trip/weather_history.html', {
+        'trip':         trip,
+        'weather_data': weather_data,
+        'can_edit':     user_can_edit(trip, request.user),
+        'weather_json': json.dumps(weather_data),
+    })
+
+
+def _fetch_open_meteo_weather(trip):
+    """
+    Call the free Open-Meteo Historical Weather API.
+    Returns a list of daily dicts or None on failure.
+    Open-Meteo geocoding: first geocode the destination, then pull daily weather.
+    Uses only the standard library so no extra pip install required.
+    """
+    import urllib.request
+    import urllib.parse
+
+    destination = trip.destination.strip()
+    start       = trip.start_date.isoformat()
+    end         = trip.end_date.isoformat()
+
+    # 1. Geocode via Open-Meteo's free geocoding endpoint
+    geo_url = (
+        "https://geocoding-api.open-meteo.com/v1/search?"
+        + urllib.parse.urlencode({'name': destination, 'count': 1, 'language': 'en', 'format': 'json'})
+    )
+    try:
+        with urllib.request.urlopen(geo_url, timeout=8) as r:
+            geo = json.loads(r.read())
+        results = geo.get('results') or []
+        if not results:
+            return None
+        lat = results[0]['latitude']
+        lon = results[0]['longitude']
+    except Exception:
+        return None
+
+    # 2. Fetch historical daily weather
+    wx_url = (
+        "https://archive-api.open-meteo.com/v1/archive?"
+        + urllib.parse.urlencode({
+            'latitude':        lat,
+            'longitude':       lon,
+            'start_date':      start,
+            'end_date':        end,
+            'daily':           'weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max',
+            'timezone':        'auto',
+            'format':          'json',
+        })
+    )
+    try:
+        with urllib.request.urlopen(wx_url, timeout=12) as r:
+            wx = json.loads(r.read())
+        daily = wx.get('daily', {})
+        dates        = daily.get('time', [])
+        codes        = daily.get('weathercode', [])
+        temp_max     = daily.get('temperature_2m_max', [])
+        temp_min     = daily.get('temperature_2m_min', [])
+        precip       = daily.get('precipitation_sum', [])
+        wind         = daily.get('windspeed_10m_max', [])
+
+        records = []
+        for i, d in enumerate(dates):
+            code = codes[i] if i < len(codes) else 0
+            records.append({
+                'date':     d,
+                'code':     code,
+                'label':    _wmo_label(code),
+                'icon':     _wmo_icon(code),
+                'temp_max': temp_max[i] if i < len(temp_max) else None,
+                'temp_min': temp_min[i] if i < len(temp_min) else None,
+                'precip':   precip[i]   if i < len(precip)   else None,
+                'wind':     wind[i]     if i < len(wind)      else None,
+            })
+        return records
+    except Exception:
+        return None
+
+
+def _wmo_label(code):
+    """Human-readable label for WMO weather interpretation codes."""
+    mapping = {
+        0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+        45: 'Fog', 48: 'Icy fog',
+        51: 'Light drizzle', 53: 'Moderate drizzle', 55: 'Dense drizzle',
+        61: 'Slight rain', 63: 'Moderate rain', 65: 'Heavy rain',
+        71: 'Slight snow', 73: 'Moderate snow', 75: 'Heavy snow',
+        77: 'Snow grains',
+        80: 'Slight showers', 81: 'Moderate showers', 82: 'Violent showers',
+        85: 'Slight snow showers', 86: 'Heavy snow showers',
+        95: 'Thunderstorm', 96: 'Thunderstorm w/ hail', 99: 'Thunderstorm w/ heavy hail',
+    }
+    return mapping.get(code, f'Code {code}')
+
+
+def _wmo_icon(code):
+    """Emoji icon for WMO code."""
+    if code == 0:   return '☀️'
+    if code in (1, 2): return '🌤️'
+    if code == 3:   return '☁️'
+    if code in (45, 48): return '🌫️'
+    if code in range(51, 56): return '🌦️'
+    if code in range(61, 66): return '🌧️'
+    if code in range(71, 78): return '❄️'
+    if code in range(80, 83): return '🌩️'
+    if code in range(85, 87): return '🌨️'
+    if code >= 95:  return '⛈️'
+    return '🌡️'
+

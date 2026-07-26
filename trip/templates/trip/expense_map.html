@@ -1,0 +1,229 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Expense Map — {{ trip.name }}</title>
+  <link rel="shortcut icon" href="{% static 'icons/favicon.png' %}" type="image/x-icon"/>
+  <link rel="manifest" href="{% static 'manifest.json' %}"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f0f4f8; --white: #ffffff; --surface: #f8f9ff; --border: #e5e7eb;
+      --accent: #6366f1; --accent-lt: #eef2ff;
+      --green: #10b981; --green-lt: #d1fae5;
+      --red: #ef4444; --red-lt: #fee2e2;
+      --yellow: #f59e0b; --yellow-lt: #fef3c7;
+      --orange: #f97316; --orange-lt: #ffedd5;
+      --text: #1f2937; --text-md: #374151; --muted: #6b7280;
+      --radius: 16px; --radius-sm: 10px;
+      --shadow: 0 4px 24px rgba(0,0,0,.07);
+    }
+    [data-theme="dark"] {
+      --bg: #0f1117; --white: #1a1d27; --surface: #1e2130; --border: #2d3148;
+      --accent: #818cf8; --accent-lt: #1e2040;
+      --green: #34d399; --green-lt: #064e3b;
+      --text: #e5e7eb; --text-md: #d1d5db; --muted: #9ca3af;
+      --shadow: 0 4px 24px rgba(0,0,0,.4);
+    }
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* Topbar */
+    .topbar { background: var(--white); border-bottom: 1.5px solid var(--border); padding: 14px 16px; position: sticky; top: 0; z-index: 200; display: flex; align-items: center; gap: 12px; }
+    .back-btn { display: flex; align-items: center; gap: 6px; background: var(--accent-lt); color: var(--accent); border: none; border-radius: var(--radius-sm); padding: 8px 14px; font-weight: 600; font-size: .9rem; cursor: pointer; text-decoration: none; }
+    .topbar-title { font-size: 1rem; font-weight: 700; flex: 1; }
+    .theme-btn { background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 10px; cursor: pointer; font-size: 1rem; color: var(--text); }
+
+    /* Stats bar */
+    .stats-bar { background: var(--white); border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; gap: 20px; font-size: .85rem; }
+    .stat-item { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+    .stat-item strong { color: var(--text); }
+
+    /* Layout */
+    .layout { display: grid; grid-template-columns: 340px 1fr; height: calc(100vh - 108px); }
+    @media(max-width:680px) { .layout { grid-template-columns: 1fr; grid-template-rows: 320px 1fr; } }
+
+    /* Sidebar */
+    .sidebar { background: var(--white); border-right: 1.5px solid var(--border); overflow-y: auto; }
+    .sidebar-header { padding: 14px 16px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: .95rem; display: flex; align-items: center; gap: 8px; }
+    .empty-state { padding: 40px 20px; text-align: center; color: var(--muted); }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+    /* Expense list items */
+    .exp-item { padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .15s; }
+    .exp-item:hover, .exp-item.active { background: var(--accent-lt); }
+    .exp-item-top { display: flex; align-items: flex-start; gap: 10px; }
+    .cat-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-lt); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+    .exp-name { font-weight: 600; font-size: .9rem; }
+    .exp-meta { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+    .exp-amount { font-weight: 800; color: var(--accent); font-size: .95rem; margin-left: auto; white-space: nowrap; }
+    .loc-badge { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; font-size: .75rem; color: var(--green); background: var(--green-lt); padding: 2px 8px; border-radius: 20px; }
+
+    /* Map */
+    #map { width: 100%; height: 100%; z-index: 1; }
+
+    /* Custom popup */
+    .leaflet-popup-content-wrapper { border-radius: 12px !important; box-shadow: 0 8px 32px rgba(0,0,0,.15) !important; }
+    .popup-inner { min-width: 180px; }
+    .popup-title { font-weight: 700; font-size: .95rem; margin-bottom: 4px; }
+    .popup-amount { color: #6366f1; font-weight: 800; font-size: 1.05rem; }
+    .popup-meta { font-size: .8rem; color: #6b7280; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+  <a href="{% url 'trip_dashboard' trip.id %}" class="back-btn">
+    <i class="ti ti-arrow-left"></i> Dashboard
+  </a>
+  <span class="topbar-title">📍 Expense Map — {{ trip.name }}</span>
+  <button class="theme-btn" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
+</div>
+
+<!-- Stats -->
+<div class="stats-bar">
+  <div class="stat-item">📌 <strong>{{ total_tagged }}</strong> tagged</div>
+  <div class="stat-item">💰 <strong>{{ total_expenses }}</strong> total expenses</div>
+  <div class="stat-item">🗺️ {{ trip.destination }}</div>
+</div>
+
+<div class="layout">
+  <!-- Sidebar: list of location-tagged expenses -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <i class="ti ti-list"></i> Location Tagged Expenses
+    </div>
+
+    {% if total_tagged == 0 %}
+    <div class="empty-state">
+      <div class="icon">🗺️</div>
+      <p style="font-weight:600;margin-bottom:8px;">No location tags yet</p>
+      <p style="font-size:.85rem;">When adding an expense, tap <em>"Use My Location"</em> to tag it with GPS coordinates.</p>
+      {% if can_edit %}
+      <a href="{% url 'add_expense' trip.id %}"
+         style="display:inline-block;margin-top:16px;background:var(--accent);color:#fff;
+                padding:10px 20px;border-radius:var(--radius-sm);font-weight:600;text-decoration:none;font-size:.9rem;">
+        + Add Location-Tagged Expense
+      </a>
+      {% endif %}
+    </div>
+    {% else %}
+    <div id="expense-list"></div>
+    {% endif %}
+  </div>
+
+  <!-- Map -->
+  <div id="map"></div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const EXPENSES = {{ expense_json|safe }};
+
+// ── Category helpers ──────────────────────────────────────────────────────────
+const CAT_ICON = {
+  'Accommodation': '🏨', 'Transport': '🚗', 'Food & Dining': '🍽️',
+  'Drinks': '🍻', 'Shopping & Souvenirs': '🛍️', 'Emergency / Medical': '🏥',
+  'Activities & Entertainment': '🎭', 'Tips & Service Charges': '🙏', 'Other': '💰'
+};
+
+function catIcon(cat) { return CAT_ICON[cat] || '💰'; }
+
+// ── Map init ─────────────────────────────────────────────────────────────────
+const map = L.map('map');
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> contributors',
+  maxZoom: 19
+}).addTo(map);
+
+// ── Build markers ────────────────────────────────────────────────────────────
+const markers = {};
+const layerGroup = L.layerGroup().addTo(map);
+const bounds = [];
+
+EXPENSES.forEach(exp => {
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="
+      background:#6366f1;color:#fff;border-radius:50%;width:36px;height:36px;
+      display:flex;align-items:center;justify-content:center;font-size:1.1rem;
+      box-shadow:0 2px 8px rgba(0,0,0,.25);border:2px solid #fff;cursor:pointer;
+    ">${catIcon(exp.category)}</div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -38],
+  });
+
+  const marker = L.marker([exp.lat, exp.lng], { icon })
+    .bindPopup(`
+      <div class="popup-inner">
+        <div class="popup-title">${exp.title}</div>
+        <div class="popup-amount">₹${exp.amount.toLocaleString('en-IN')}</div>
+        <div class="popup-meta">
+          ${catIcon(exp.category)} ${exp.category}<br>
+          👤 ${exp.paid_by}<br>
+          ${exp.location_name ? '📍 ' + exp.location_name : ''}
+        </div>
+      </div>
+    `);
+
+  marker.addTo(layerGroup);
+  markers[exp.id] = marker;
+  bounds.push([exp.lat, exp.lng]);
+});
+
+if (bounds.length > 0) {
+  map.fitBounds(bounds, { padding: [40, 40] });
+} else {
+  map.setView([20.5937, 78.9629], 5); // India center fallback
+}
+
+// ── Sidebar list ─────────────────────────────────────────────────────────────
+const listEl = document.getElementById('expense-list');
+if (listEl) {
+  EXPENSES.forEach(exp => {
+    const div = document.createElement('div');
+    div.className = 'exp-item';
+    div.dataset.id = exp.id;
+    div.innerHTML = `
+      <div class="exp-item-top">
+        <div class="cat-icon">${catIcon(exp.category)}</div>
+        <div style="flex:1">
+          <div class="exp-name">${exp.title}</div>
+          <div class="exp-meta">${exp.category} · ${exp.paid_by}</div>
+          ${exp.location_name ? `<div class="loc-badge">📍 ${exp.location_name}</div>` : ''}
+        </div>
+        <div class="exp-amount">₹${exp.amount.toLocaleString('en-IN')}</div>
+      </div>
+    `;
+    div.addEventListener('click', () => {
+      document.querySelectorAll('.exp-item').forEach(el => el.classList.remove('active'));
+      div.classList.add('active');
+      const m = markers[exp.id];
+      map.setView([exp.lat, exp.lng], 15, { animate: true });
+      m.openPopup();
+    });
+    listEl.appendChild(div);
+  });
+}
+
+// ── Theme toggle ──────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const t = document.documentElement.getAttribute('data-theme') === 'dark' ? '' : 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('tbm-theme', t);
+}
+(function() {
+  const saved = localStorage.getItem('tbm-theme') || '';
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+})();
+</script>
+</body>
+</html>

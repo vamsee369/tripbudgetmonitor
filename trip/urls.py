@@ -32,4 +32,10 @@ urlpatterns = [
     path('offline/', views.offline_view, name='offline'),
     path('trip/<int:trip_id>/checklist/', views.trip_checklist, name='trip_checklist'),
     path('trip/<int:trip_id>/sync-offline-expense/', views.sync_offline_expense, name='sync_offline_expense'),
+
+    # Feature 12: Location Map
+    path('trip/<int:trip_id>/expense-map/', views.expense_map, name='expense_map'),
+
+    # Feature 13: Weather History
+    path('trip/<int:trip_id>/weather-history/', views.weather_history, name='weather_history'),
 ]

@@ -718,6 +718,12 @@
     <a href="{% url 'spending_heatmap' trip.id %}" class="action-btn">
       <i class="ti ti-chart-dots"></i> Analytics
     </a>
+    <a href="{% url 'expense_map' trip.id %}" class="action-btn">
+      <i class="ti ti-map-pin"></i> Expense Map
+    </a>
+    <a href="{% url 'weather_history' trip.id %}" class="action-btn">
+      <i class="ti ti-cloud"></i> Weather
+    </a>
     {% if is_owner %}
     <a href="{% url 'manage_access' trip.id %}" class="action-btn">
       <i class="ti ti-key"></i> Manage Access

@@ -490,6 +490,34 @@
       </div>
     </div>
 
+    <!-- ── Feature 12: GPS Location Tag ─────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title"><i class="ti ti-map-pin"></i> Tag Location <span style="font-size:.75rem;font-weight:400;color:var(--muted)">(optional)</span></div>
+
+      <input type="hidden" name="latitude"      id="loc-lat"/>
+      <input type="hidden" name="longitude"     id="loc-lng"/>
+      <input type="text"   name="location_name" id="loc-name"
+             placeholder="Location name (e.g. Café Mocha, MG Road)"
+             style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);
+                    background:var(--surface);color:var(--text);font-size:.95rem;margin-bottom:10px;"/>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <button type="button" id="gps-btn" onclick="getGPS()"
+                style="display:flex;align-items:center;gap:6px;padding:10px 18px;border:none;border-radius:var(--radius-sm);
+                       background:var(--accent);color:#fff;font-weight:600;cursor:pointer;font-size:.9rem;">
+          <i class="ti ti-current-location"></i> Use My Location
+        </button>
+        <span id="gps-status" style="font-size:.85rem;color:var(--muted);"></span>
+      </div>
+
+      <div id="loc-preview" style="display:none;margin-top:10px;padding:10px 14px;
+           background:var(--green-lt);border-radius:var(--radius-sm);font-size:.85rem;color:var(--text-md);">
+        📍 <span id="loc-preview-text"></span>
+        <button type="button" onclick="clearGPS()"
+                style="margin-left:10px;background:none;border:none;color:var(--red);cursor:pointer;font-size:.85rem;">✕ Clear</button>
+      </div>
+    </div>
+
     <button type="submit" class="btn-submit">💾 Save Expense</button>
   </form>
 
@@ -1084,6 +1112,66 @@
   }
 
 })();
+
+// ── Feature 12: GPS helpers ────────────────────────────────────────────────
+function getGPS() {
+  const btn = document.getElementById('gps-btn');
+  const status = document.getElementById('gps-status');
+  if (!navigator.geolocation) {
+    status.textContent = 'Geolocation not supported by your browser.';
+    return;
+  }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader"></i> Locating…';
+  status.textContent = '';
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      document.getElementById('loc-lat').value = pos.coords.latitude.toFixed(6);
+      document.getElementById('loc-lng').value = pos.coords.longitude.toFixed(6);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-check"></i> Location Set';
+      btn.style.background = 'var(--green)';
+      // Auto-fill name if blank
+      const nameEl = document.getElementById('loc-name');
+      if (!nameEl.value.trim()) {
+        nameEl.value = `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+      }
+      showLocPreview();
+    },
+    err => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-current-location"></i> Use My Location';
+      status.textContent = 'Could not get location. Please allow location access.';
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+function showLocPreview() {
+  const lat = document.getElementById('loc-lat').value;
+  const lng = document.getElementById('loc-lng').value;
+  const name = document.getElementById('loc-name').value;
+  if (lat && lng) {
+    document.getElementById('loc-preview').style.display = 'block';
+    document.getElementById('loc-preview-text').textContent =
+      (name || `${lat}, ${lng}`) + ` (${lat}, ${lng})`;
+  }
+}
+
+function clearGPS() {
+  document.getElementById('loc-lat').value = '';
+  document.getElementById('loc-lng').value = '';
+  document.getElementById('loc-name').value = '';
+  document.getElementById('loc-preview').style.display = 'none';
+  const btn = document.getElementById('gps-btn');
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-current-location"></i> Use My Location';
+  btn.style.background = 'var(--accent)';
+}
+
+document.getElementById('loc-name').addEventListener('input', function() {
+  if (document.getElementById('loc-lat').value) showLocPreview();
+});
 </script>
 
 </body>
