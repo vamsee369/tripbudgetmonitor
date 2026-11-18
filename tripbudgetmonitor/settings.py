@@ -166,6 +166,7 @@ LOGIN_URL = "/accounts/login/"
 # ---------------------------
 # HTTPS / Security Cookies
 # ---------------------------
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_SSL_REDIRECT = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
