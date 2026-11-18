@@ -141,13 +141,207 @@ def trip_history(request):
     return render(request, "trip/trip_history.html", {"trips": trips})
 
 
-# ── Completed trips list ──────────────────────────────────────────────────────
+# ── Completed trips — Travel Memories gallery ────────────────────────────────
+
+def _image_url(expense):
+    """Safe URL for an expense's stored image (None if missing/unavailable)."""
+    try:
+        return expense.receipt.url if expense.receipt else None
+    except Exception:
+        return None
+
+
+def _financial_summary(budget, spent):
+    """Budget maths for one trip. Never reports a negative amount as 'remaining'.
+
+    remaining = budget - spent (only meaningful when budget > 0)
+    pct       = spent / budget * 100 (None when there is no budget)
+    """
+    budget = Decimal(budget or 0)
+    spent = Decimal(spent or 0)
+    has_budget = budget > 0
+    over = has_budget and spent > budget
+    if has_budget:
+        pct = (spent / budget * 100)
+        remaining = max(budget - spent, Decimal(0))
+        overspent_by = max(spent - budget, Decimal(0))
+        state = "over" if over else ("full" if spent == budget and spent > 0 else
+                                     "warn" if pct >= 85 else "good")
+    else:
+        pct = None
+        remaining = None
+        overspent_by = Decimal(0)
+        state = "nobudget"
+    return {
+        "budget": budget, "spent": spent, "has_budget": has_budget,
+        "remaining": remaining, "overspent_by": overspent_by,
+        "pct": round(float(pct), 1) if pct is not None else None,
+        "bar_pct": min(round(float(pct), 1), 100) if pct is not None else 0,
+        "state": state, "no_expenses": spent == 0,
+    }
+
+
+def _fallback_hue(text):
+    """Stable 0-359 hue derived from the destination for the placeholder cover."""
+    return sum(ord(c) * (i + 1) for i, c in enumerate((text or "").lower())) % 360
+
 
 @login_required
 def trip_list(request):
+    """Completed trips shown as a visual 'Travel Memories' gallery.
+
+    Same visibility rules as before (visible_trips_for + ended before today).
+    Trip History is a separate view/template and is not touched.
+    """
     today = timezone.now().date()
-    completed_trips = visible_trips_for(request.user).filter(end_date__lt=today).order_by('-end_date').distinct()
-    return render(request, 'trip/trip_list.html', {'trips': completed_trips})
+    user = request.user
+    trips = list(
+        visible_trips_for(user)
+        .filter(end_date__lt=today)
+        .select_related("created_by", "cover_expense")
+        .order_by("-end_date", "-id")
+    )
+
+    trip_ids = [t.id for t in trips]
+
+    # Spend is aggregated in its own query: visible_trips_for() LEFT JOINs
+    # collaborators, so a Sum annotated on that queryset would be multiplied
+    # by the number of collaborators.
+    spent_by_trip = {}
+    if trip_ids:
+        for row in (Expense.objects.filter(trip_id__in=trip_ids)
+                    .values("trip_id").annotate(total=db_models.Sum("amount"))):
+            spent_by_trip[row["trip_id"]] = row["total"] or Decimal(0)
+
+    # One query for every image attached to these trips' expenses.
+    images_by_trip = defaultdict(list)
+    if trip_ids:
+        imgs = (
+            Expense.objects.filter(trip_id__in=trip_ids)
+            .exclude(receipt="").exclude(receipt__isnull=True)
+            .order_by("created_at", "id")
+        )
+        for e in imgs:
+            images_by_trip[e.trip_id].append(e)
+
+    # One query for this user's edit rights on shared trips.
+    edit_trip_ids = set(
+        TripCollaborator.objects.filter(user=user, trip_id__in=trip_ids, permission="edit")
+        .values_list("trip_id", flat=True)
+    )
+
+    cards = []
+    total_spent = Decimal(0)
+    total_days = 0
+    destinations = set()
+    years = set()
+
+    for t in trips:
+        spent = spent_by_trip.get(t.id, Decimal(0))
+        fin = _financial_summary(t.budget, spent)
+        days = (t.end_date - t.start_date).days + 1
+        participants = t.get_participants()
+
+        photos = [e for e in images_by_trip.get(t.id, []) if e.receipt_type == "photo"]
+        chosen = t.cover_expense if (t.cover_expense_id and t.cover_expense and
+                                     t.cover_expense.trip_id == t.id and t.cover_expense.receipt) else None
+        cover_exp = chosen or (photos[0] if photos else None)
+        cover_url = _image_url(cover_exp) if cover_exp else None
+
+        can_edit = user.is_superuser or t.created_by_id == user.id or t.id in edit_trip_ids
+
+        cards.append({
+            "trip": t,
+            "days": max(days, 1),
+            "participant_count": len(participants),
+            "fin": fin,
+            "cover_url": cover_url,
+            "has_custom_cover": bool(chosen),
+            "photo_count": len(images_by_trip.get(t.id, [])),
+            "can_edit": can_edit,
+            "hue": _fallback_hue(t.destination),
+            "year": t.end_date.year,
+        })
+
+        total_spent += spent
+        total_days += max(days, 1)
+        destinations.add((t.destination or "").strip().lower())
+        years.add(t.end_date.year)
+
+    destinations.discard("")
+    return render(request, "trip/trip_list.html", {
+        "cards": cards,
+        "trips": trips,                       # kept for backward compatibility
+        "stats": {
+            "trips": len(cards),
+            "spent": total_spent,
+            "destinations": len(destinations),
+            "days": total_days,
+        },
+        "years": sorted(years, reverse=True),
+    })
+
+
+@login_required
+def trip_cover(request, trip_id):
+    """Cover-photo management.
+
+    GET  -> JSON list of images already attached to this trip (existing storage).
+    POST -> action=set (expense_id) | action=reset. Needs edit permission.
+    """
+    trip = get_object_or_404(Trip, id=trip_id)
+
+    if request.method == "POST":
+        if not user_can_edit(trip, request.user):
+            return JsonResponse({"ok": False, "error": "You don't have edit access to this trip."}, status=403)
+        action = request.POST.get("action", "set")
+        if action == "reset":
+            trip.cover_expense = None
+            trip.save(update_fields=["cover_expense"])
+        elif action == "set":
+            exp = Expense.objects.filter(
+                id=request.POST.get("expense_id") or 0, trip=trip
+            ).exclude(receipt="").exclude(receipt__isnull=True).first()
+            if not exp:
+                return JsonResponse({"ok": False, "error": "That image doesn't belong to this trip."}, status=400)
+            trip.cover_expense = exp
+            trip.save(update_fields=["cover_expense"])
+        else:
+            return JsonResponse({"ok": False, "error": "Unknown action."}, status=400)
+
+        # Report what the card should now show.
+        auto = (Expense.objects.filter(trip=trip, receipt_type="photo")
+                .exclude(receipt="").exclude(receipt__isnull=True)
+                .order_by("created_at", "id").first())
+        cover = trip.cover_expense or auto
+        return JsonResponse({
+            "ok": True,
+            "cover_url": _image_url(cover) if cover else None,
+            "custom": bool(trip.cover_expense_id),
+        })
+
+    if not user_can_view(trip, request.user):
+        return JsonResponse({"ok": False, "error": "No access."}, status=403)
+
+    images = (Expense.objects.filter(trip=trip)
+              .exclude(receipt="").exclude(receipt__isnull=True)
+              .order_by("created_at", "id"))
+    items = []
+    for e in images:
+        url = _image_url(e)
+        if url:
+            items.append({
+                "id": e.id, "url": url, "title": e.title,
+                "kind": e.receipt_type or "receipt",
+                "selected": e.id == trip.cover_expense_id,
+            })
+    # Real photos first, then bills/receipts.
+    items.sort(key=lambda i: 0 if i["kind"] == "photo" else 1)
+    return JsonResponse({
+        "ok": True, "images": items,
+        "can_edit": user_can_edit(trip, request.user),
+        "custom": bool(trip.cover_expense_id),
+    })
 
 
 # ── Trip dashboard ────────────────────────────────────────────────────────────

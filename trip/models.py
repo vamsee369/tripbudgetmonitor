@@ -20,6 +20,16 @@ class Trip(models.Model):
     # ── Feature 13: Weather History (stored after trip completes) ─────────────
     weather_history = models.JSONField(default=list, blank=True)
 
+    # ── Travel Memories: chosen cover photo ───────────────────────────────────
+    # Points at an existing Expense image (Expense.receipt) so no image is
+    # stored twice. NULL = automatic cover (first "photo" attachment, else a
+    # generated destination fallback). SET_NULL means deleting that expense
+    # simply resets the cover instead of deleting anything.
+    cover_expense = models.ForeignKey(
+        "Expense", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="+",
+    )
+
     def get_participants(self):
         """Return participants as a clean list (no empty strings)."""
         try:
