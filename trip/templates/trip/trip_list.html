@@ -48,8 +48,11 @@
 
     .wrap { max-width:1180px; margin:0 auto; padding:0 16px 70px; }
 
-    /* ── Hero ── */
-    .hero { position:relative; overflow:hidden; margin:16px 0 22px; border-radius:28px; padding:44px 36px 30px; color:#fff;
+    /* ── Hero: 3D memory ring ───────────────────────────────────────────────
+       Left: title + stats (tilting glass tiles).  Right: your newest trips as
+       postcards standing on a rotating ring.  Pure CSS 3D + a little JS. */
+    .hero { position:relative; overflow:hidden; margin:16px 0 22px; border-radius:28px; padding:40px 36px 34px; color:#fff;
+      display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:8px 20px; align-items:center;
       background:
         radial-gradient(900px 340px at 85% -10%, rgba(129,140,248,.45), transparent 60%),
         radial-gradient(700px 300px at 0% 110%, rgba(236,72,153,.22), transparent 60%),
@@ -59,13 +62,47 @@
       background-image:radial-gradient(rgba(255,255,255,.18) 1px, transparent 1.2px); background-size:26px 26px;
       -webkit-mask-image:linear-gradient(120deg,transparent 35%,#000 100%); mask-image:linear-gradient(120deg,transparent 35%,#000 100%); opacity:.5; }
     .hero > * { position:relative; z-index:1; }
-    .hero h1 { font-family:var(--serif); font-weight:700; font-size:clamp(2rem,5vw,3.2rem); letter-spacing:-.01em; line-height:1.08; }
-    .hero p.sub { margin-top:10px; font-size:1rem; color:rgba(255,255,255,.72); max-width:46ch; line-height:1.5; }
-    .stats { margin-top:30px; display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
-    .stat { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-radius:18px; padding:16px 16px 14px; min-width:0; }
-    .stat i { font-size:1.15rem; color:#a5b4fc; }
-    .stat .v { font-family:var(--serif); font-size:1.7rem; font-weight:700; margin-top:6px; line-height:1.1; overflow-wrap:anywhere; }
-    .stat .l { font-size:.74rem; color:rgba(255,255,255,.62); margin-top:3px; }
+    .hero h1 { font-family:var(--serif); font-weight:700; font-size:clamp(2rem,4.6vw,3.2rem); letter-spacing:-.01em; line-height:1.08; }
+    .hero p.sub { margin-top:10px; font-size:1rem; color:rgba(255,255,255,.72); max-width:38ch; line-height:1.5; }
+
+    .stats { margin-top:26px; display:grid; grid-template-columns:repeat(2,1fr); gap:12px; perspective:900px; }
+    .tile { --rx:0deg; --ry:0deg; --mx:50%; --my:0%; position:relative; transform-style:preserve-3d;
+      transform:rotateX(var(--rx)) rotateY(var(--ry)); transition:transform .35s cubic-bezier(.2,.7,.2,1), box-shadow .35s;
+      background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+      border-radius:18px; padding:16px 16px 14px; min-width:0; box-shadow:0 10px 24px rgba(8,7,20,.25); will-change:transform; }
+    .tile.live { transition:transform .06s linear, box-shadow .35s; box-shadow:0 22px 40px rgba(8,7,20,.45); }
+    .tile::before { content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; opacity:0; transition:opacity .3s;
+      background:radial-gradient(180px 140px at var(--mx) var(--my), rgba(255,255,255,.22), transparent 70%); }
+    .tile.live::before { opacity:1; }
+    .tile i { display:block; font-size:1.15rem; color:#a5b4fc; transform:translateZ(34px); width:max-content; }
+    .tile .v { font-family:var(--serif); font-size:1.7rem; font-weight:700; margin-top:6px; line-height:1.1; overflow-wrap:anywhere; transform:translateZ(22px); }
+    .tile .l { font-size:.74rem; color:rgba(255,255,255,.62); margin-top:3px; transform:translateZ(10px); }
+
+    .stage { position:relative; height:330px; perspective:1100px; touch-action:pan-y; cursor:grab; user-select:none; -webkit-user-select:none; outline:none; }
+    .stage.grabbing { cursor:grabbing; }
+    .stage:focus-visible { box-shadow:0 0 0 3px rgba(165,180,252,.6); border-radius:22px; }
+    .floor { position:absolute; left:50%; bottom:14px; width:78%; height:70px; transform:translateX(-50%); border-radius:50%;
+      background:radial-gradient(closest-side, rgba(129,140,248,.55), rgba(129,140,248,.12) 60%, transparent 72%); filter:blur(6px); }
+    .ring { position:absolute; left:50%; top:46%; width:0; height:0; transform-style:preserve-3d; will-change:transform; }
+    .face { --fw:150px; --fh:206px; position:absolute; left:calc(var(--fw) / -2); top:calc(var(--fh) / -2); width:var(--fw); height:var(--fh);
+      transform:rotateY(calc(var(--i) * 360deg / var(--n))) translateZ(var(--r, 150px)); backface-visibility:hidden; -webkit-backface-visibility:hidden;
+      display:block; text-decoration:none; color:#fff; border-radius:16px; }
+    .face-in { position:absolute; inset:0; border-radius:16px; overflow:hidden; border:1px solid rgba(255,255,255,.3); filter:brightness(var(--b, 1));
+      box-shadow:0 14px 30px rgba(8,7,20,.5);
+      background:radial-gradient(120% 90% at 85% 0%, hsl(var(--h) 85% 62% / .75), transparent 60%), linear-gradient(145deg, hsl(var(--h) 55% 24%), hsl(calc(var(--h) + 50) 60% 14%)); }
+    .face-in img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; pointer-events:none; -webkit-user-drag:none; }
+    .face-in::after { content:""; position:absolute; inset:0; background:linear-gradient(to top, rgba(8,7,20,.88) 0%, rgba(8,7,20,.2) 48%, rgba(8,7,20,.12) 100%); }
+    .face-txt { position:absolute; left:11px; right:11px; bottom:10px; z-index:1; }
+    .face-txt b { display:block; font-family:var(--serif); font-size:1.05rem; line-height:1.15; overflow-wrap:anywhere; text-shadow:0 2px 10px rgba(0,0,0,.5); }
+    .face-txt small { display:block; margin-top:3px; font-size:.68rem; color:rgba(255,255,255,.78); }
+    .face:focus-visible .face-in { outline:3px solid #a5b4fc; outline-offset:2px; }
+    .face.pad .face-in { background:rgba(255,255,255,.05); border:1.5px dashed rgba(255,255,255,.3); box-shadow:none; display:grid; place-items:center; text-align:center; padding:14px; }
+    .face.pad .face-in::after { display:none; }
+    .face.pad i { display:block; font-size:1.6rem; color:#a5b4fc; margin-bottom:6px; }
+    .face.pad span { font-size:.78rem; color:rgba(255,255,255,.7); line-height:1.35; }
+    .stage-hint { position:absolute; left:0; right:0; bottom:-4px; text-align:center; font-size:.72rem; color:rgba(255,255,255,.55); pointer-events:none; }
+    .flash { animation:flash 1.4s ease; }
+    @keyframes flash { 0%,100% { box-shadow:var(--shadow); } 25% { box-shadow:0 0 0 4px var(--accent), 0 18px 44px rgba(99,102,241,.35); } }
 
     /* ── Toolbar ── */
     .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:var(--white); border:1.5px solid var(--border); border-radius:18px; padding:10px; box-shadow:var(--shadow-sm); margin-bottom:10px; }
@@ -85,8 +122,9 @@
     .card.hidden { display:none; }
 
     .cover { position:relative; aspect-ratio:16/10; overflow:hidden; background:#1e1b4b; isolation:isolate; }
-    .cover img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transition:transform .7s cubic-bezier(.2,.7,.2,1); }
-    .card:hover .cover img { transform:scale(1.07); }
+    .cv-zoom { position:absolute; inset:0; transition:transform .7s cubic-bezier(.2,.7,.2,1); }
+    .cv-zoom img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+    .card:hover .cv-zoom { transform:scale(1.05); }
     .cover.fallback { background:
         radial-gradient(120% 90% at 85% 0%, hsl(var(--h) 85% 62% / .75), transparent 60%),
         linear-gradient(145deg, hsl(var(--h) 55% 22%), hsl(calc(var(--h) + 50) 60% 14%)); }
@@ -154,45 +192,22 @@
     .btn-cta { display:inline-flex; align-items:center; gap:8px; background:var(--accent); color:#fff; text-decoration:none; font-weight:700; padding:13px 24px; border-radius:14px; box-shadow:0 8px 22px rgba(99,102,241,.35); transition:transform .2s, background .2s; }
     .btn-cta:hover { background:#4f46e5; transform:translateY(-2px); }
 
-    /* ── Cover modal ── */
-    .modal { position:fixed; inset:0; z-index:1000; display:none; align-items:center; justify-content:center; padding:16px; background:rgba(8,7,20,.66); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
-    .modal.open { display:flex; }
-    .sheet { background:var(--white); border-radius:24px; width:min(760px,100%); max-height:92vh; overflow:auto; box-shadow:0 30px 80px rgba(0,0,0,.5); }
-    .sheet-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:18px 20px 6px; }
-    .sheet-head h3 { font-family:var(--serif); font-size:1.35rem; }
-    .x { border:none; background:var(--surface); color:var(--text); width:34px; height:34px; border-radius:50%; cursor:pointer; font-size:1.1rem; }
-    .preview { margin:10px 20px 0; aspect-ratio:16/8; border-radius:18px; overflow:hidden; position:relative; background:var(--surface); display:grid; place-items:center; color:var(--muted); font-size:.88rem; }
-    .preview img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-    .sub-h { margin:16px 20px 8px; font-size:.78rem; font-weight:700; color:var(--muted); }
-    .thumbs { display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:9px; margin:0 20px; }
-    .thumb { position:relative; aspect-ratio:1; border-radius:12px; overflow:hidden; border:3px solid transparent; cursor:pointer; padding:0; background:var(--surface); }
-    .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
-    .thumb.sel { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-lt); }
-    .thumb .tick { position:absolute; top:5px; right:5px; width:20px; height:20px; border-radius:50%; background:var(--accent); color:#fff; display:none; place-items:center; font-size:.75rem; }
-    .thumb.sel .tick { display:grid; }
-    .sheet-foot { display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center; padding:18px 20px 20px; }
-    .sheet-foot .grp { display:flex; gap:10px; flex-wrap:wrap; }
-    .b { border:1.5px solid var(--border); background:var(--surface); color:var(--text-md); font:inherit; font-weight:700; font-size:.85rem; padding:10px 18px; border-radius:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all .15s; }
-    .b:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
-    .b.save { background:var(--accent); border-color:var(--accent); color:#fff; }
-    .b.save:hover:not(:disabled) { background:#4f46e5; color:#fff; }
-    .b:disabled { opacity:.45; cursor:not-allowed; }
-    .msg { padding:0 20px; font-size:.82rem; color:var(--red); min-height:1em; }
-    .note { margin:0 20px; font-size:.82rem; color:var(--muted); line-height:1.5; padding:18px 0 0; }
-
     .toast { position:fixed; left:50%; bottom:24px; transform:translate(-50%,30px); opacity:0; background:#14122b; color:#fff; padding:11px 18px; border-radius:999px; font-size:.85rem; font-weight:600; z-index:1100; transition:all .3s; pointer-events:none; }
     .toast.show { opacity:1; transform:translate(-50%,0); }
 
     /* ── Responsive ── */
-    @media (max-width:900px) { .stats { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:900px) { .hero { grid-template-columns:1fr; padding:32px 24px 26px; } .stage { height:290px; } }
     @media (max-width:640px) {
-      .hero { padding:30px 20px 22px; border-radius:22px; margin-top:10px; }
+      .hero { padding:28px 18px 20px; border-radius:22px; margin-top:10px; }
+      .face { --fw:124px; --fh:172px; }
+      .stage { height:250px; }
+      .tile .v { font-size:1.45rem; }
       .grid { grid-template-columns:1fr; gap:18px; }
       .wrap { padding:0 12px 80px; }
       .titleblock h2 { font-size:1.45rem; }
       .toolbar select { flex:1 1 140px; }
     }
-    @media (prefers-reduced-motion:reduce) { *, *::before, *::after { transition:none !important; } }
+    @media (prefers-reduced-motion:reduce) { *, *::before, *::after { transition:none !important; animation:none !important; } }
   </style>
 <script>
 (function(){
@@ -213,13 +228,37 @@
 <div class="wrap">
 
   <header class="hero">
-    <h1>Your Travel Memories</h1>
-    <p class="sub">Every journey has a story. Revisit your completed adventures.</p>
-    <div class="stats">
-      <div class="stat"><i class="ti ti-luggage"></i><div class="v">{{ stats.trips }}</div><div class="l">Completed trip{{ stats.trips|pluralize }}</div></div>
-      <div class="stat"><i class="ti ti-wallet"></i><div class="v">₹{{ stats.spent|floatformat:"-2g" }}</div><div class="l">Spent across trips</div></div>
-      <div class="stat"><i class="ti ti-map-pin"></i><div class="v">{{ stats.destinations }}</div><div class="l">Destination{{ stats.destinations|pluralize }} visited</div></div>
-      <div class="stat"><i class="ti ti-calendar-time"></i><div class="v">{{ stats.days }}</div><div class="l">Day{{ stats.days|pluralize }} of travel</div></div>
+    <div class="hero-copy">
+      <h1>Your Travel Memories</h1>
+      <p class="sub">Every journey has a story. Revisit your completed adventures.</p>
+      <div class="stats">
+        <div class="tile"><i class="ti ti-luggage"></i><div class="v">{{ stats.trips }}</div><div class="l">Completed trip{{ stats.trips|pluralize }}</div></div>
+        <div class="tile"><i class="ti ti-wallet"></i><div class="v">₹{{ stats.spent|floatformat:"-2g" }}</div><div class="l">Spent across trips</div></div>
+        <div class="tile"><i class="ti ti-map-pin"></i><div class="v">{{ stats.destinations }}</div><div class="l">Destination{{ stats.destinations|pluralize }} visited</div></div>
+        <div class="tile"><i class="ti ti-calendar-time"></i><div class="v">{{ stats.days }}</div><div class="l">Day{{ stats.days|pluralize }} of travel</div></div>
+      </div>
+    </div>
+
+    <div class="stage" id="stage" tabindex="0" aria-label="Your latest trips on a rotating 3D ring. Drag or use the arrow keys to spin it; select a postcard to jump to that trip.">
+      <div class="floor"></div>
+      <div class="ring" id="ring" style="--n:{{ ring_n }};">
+        {% for c in ring_cards %}
+          <a class="face" href="#tc-{{ c.trip.id }}" data-trip="{{ c.trip.id }}" style="--i:{{ forloop.counter0 }}; --h:{{ c.hue }};">
+            <span class="face-in">
+              {% if c.cover_url %}<img src="{{ c.trip.cover_thumb_url }}" alt="" loading="lazy" draggable="false" style="{{ c.trip.cover_style }}" onerror="this.remove();"/>{% endif %}
+              <span class="face-txt"><b>{{ c.trip.destination }}</b><small>{{ c.year }} · {{ c.days }} day{{ c.days|pluralize }}</small></span>
+            </span>
+          </a>
+        {% endfor %}
+        {% with n=ring_cards|length %}
+        {% for pad in ring_pad %}
+          <span class="face pad" style="--i:{{ forloop.counter0|add:n }}; --h:240;" aria-hidden="true">
+            <span class="face-in"><span><i class="ti ti-plane-departure"></i><span>Your next stop<br>goes here</span></span></span>
+          </span>
+        {% endfor %}
+        {% endwith %}
+      </div>
+      <div class="stage-hint"><i class="ti ti-hand-move"></i> Drag to spin</div>
     </div>
   </header>
 
@@ -249,18 +288,20 @@
              data-dest="{{ t.destination|lower }}" data-name="{{ t.name|lower }}"
              data-year="{{ c.year }}" data-end="{{ t.end_date|date:'Ymd' }}" data-id="{{ t.id }}"
              data-spent="{{ f.spent|stringformat:'f' }}" data-days="{{ c.days }}"
-             data-cover-url="{% url 'trip_cover' t.id %}">
+             data-title="{{ t.destination }}" data-cover-post="{% url 'trip_cover' t.id %}"
+             data-cover-src="{{ c.cover_url|default:'' }}" data-px="{{ t.cover_pos_x|stringformat:'.2f' }}"
+             data-py="{{ t.cover_pos_y|stringformat:'.2f' }}" data-zoom="{{ t.cover_zoom|stringformat:'.3f' }}">
 
       <div class="cover{% if not c.cover_url %} fallback{% endif %}" style="--h:{{ c.hue }};">
         {% if c.cover_url %}
-          <img src="{{ c.cover_url }}" alt="{{ t.destination }}" loading="lazy" onerror="this.parentNode.classList.add('fallback');this.remove();"/>
+          <div class="cv-zoom"><img src="{{ c.cover_url }}" alt="{{ t.destination }}" loading="lazy" style="{{ t.cover_style }}" onerror="var cv=this.closest('.cover');cv.classList.add('fallback');this.parentNode.remove();"/></div>
         {% else %}
           <i class="ti ti-map-pin mark"></i>
         {% endif %}
 
         <span class="over badge glass"><i class="ti ti-circle-check-filled"></i> Completed</span>
-        {% if c.photo_count %}<span class="over chip-photos glass{% if c.can_edit %} has-btn{% endif %}"><i class="ti ti-photo"></i> {{ c.photo_count }}</span>{% endif %}
-        {% if c.can_edit %}<button type="button" class="over cover-btn glass" title="Change cover photo" aria-label="Change cover photo for {{ t.destination }}" onclick="openCover({{ t.id }})"><i class="ti ti-camera"></i></button>{% endif %}
+        {% if c.album_count %}<span class="over chip-photos glass{% if c.can_cover %} has-btn{% endif %}"><i class="ti ti-folders"></i> {{ c.album_count }} album{{ c.album_count|pluralize }}</span>{% endif %}
+        {% if c.can_cover %}<button type="button" class="over cover-btn glass" title="{% if c.cover_url %}Change cover photo{% else %}Add cover photo{% endif %}" aria-label="Change cover photo for {{ t.destination }}" onclick="openCover({{ t.id }})"><i class="ti ti-camera"></i></button>{% endif %}
 
         <div class="over titleblock">
           <h2>{{ t.destination }}</h2>
@@ -354,26 +395,7 @@
 
 </div>
 
-<!-- ── Cover photo manager ── -->
-<div class="modal" id="cover-modal" role="dialog" aria-modal="true" aria-labelledby="cover-title">
-  <div class="sheet">
-    <div class="sheet-head"><h3 id="cover-title">Choose a cover photo</h3><button class="x" type="button" onclick="closeCover()" aria-label="Close"><i class="ti ti-x"></i></button></div>
-    <div class="preview" id="cv-preview"><span>Loading…</span></div>
-    <div class="sub-h" id="cv-photos-h" style="display:none;">Trip photos</div>
-    <div class="thumbs" id="cv-photos"></div>
-    <div class="sub-h" id="cv-other-h" style="display:none;">Bills &amp; receipts</div>
-    <div class="thumbs" id="cv-other"></div>
-    <p class="note" id="cv-empty" style="display:none;">No images are attached to this trip yet. Attach a photo to any expense (choose “Photo” as the type) and it will appear here.</p>
-    <div class="msg" id="cv-msg"></div>
-    <div class="sheet-foot">
-      <button class="b" type="button" id="cv-reset"><i class="ti ti-restore"></i> Reset to default</button>
-      <div class="grp">
-        <button class="b" type="button" onclick="closeCover()">Cancel</button>
-        <button class="b save" type="button" id="cv-save" disabled><i class="ti ti-check"></i> Save cover</button>
-      </div>
-    </div>
-  </div>
-</div>
+{% if any_can_cover %}{% include "trip/_cover_manager.html" %}{% endif %}
 <div class="toast" id="toast"></div>
 
 <script>
@@ -410,92 +432,130 @@
     sort.addEventListener('change', apply);
   }
 
-  /* ── Cover photo manager ── */
-  var modal = document.getElementById('cover-modal'),
-      prev = document.getElementById('cv-preview'),
-      photosEl = document.getElementById('cv-photos'), otherEl = document.getElementById('cv-other'),
-      photosH = document.getElementById('cv-photos-h'), otherH = document.getElementById('cv-other-h'),
-      emptyEl = document.getElementById('cv-empty'), msg = document.getElementById('cv-msg'),
-      saveBtn = document.getElementById('cv-save'), resetBtn = document.getElementById('cv-reset');
-  var current = null, chosen = null, csrf = document.querySelector('meta[name=csrf-token]').content;
-
+  /* ── Cover photo: open the shared manager, then repaint card + ring ── */
   function toast(t) { var el = document.getElementById('toast'); el.textContent = t; el.classList.add('show'); setTimeout(function () { el.classList.remove('show'); }, 2400); }
 
-  function thumb(img) {
-    var b = document.createElement('button'); b.type = 'button'; b.className = 'thumb' + (img.selected ? ' sel' : '');
-    b.dataset.id = img.id; b.title = img.title || '';
-    var i = document.createElement('img'); i.src = img.url; i.loading = 'lazy'; i.alt = img.title || 'Trip image';
-    var t = document.createElement('span'); t.className = 'tick'; t.innerHTML = '<i class="ti ti-check"></i>';
-    b.appendChild(i); b.appendChild(t);
-    b.onclick = function () { select(img, b); };
-    return b;
-  }
-  function select(img, node) {
-    chosen = img;
-    modal.querySelectorAll('.thumb').forEach(function (n) { n.classList.remove('sel'); });
-    node.classList.add('sel');
-    prev.innerHTML = ''; var p = document.createElement('img'); p.src = img.url; p.alt = 'Selected cover preview'; prev.appendChild(p);
-    saveBtn.disabled = false; msg.textContent = '';
-  }
-  function post(data) {
-    var body = new URLSearchParams(data);
-    return fetch(current.dataset.coverUrl, { method: 'POST', headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' }, body: body, credentials: 'same-origin' })
-      .then(function (r) { return r.json().catch(function () { return { ok: false, error: 'Unexpected response.' }; }); });
-  }
-  function paintCard(res) {
-    var cover = current.querySelector('.cover');
-    var old = cover.querySelector('img'); if (old) old.remove();
-    var mark = cover.querySelector('.mark');
-    if (res.cover_url) {
+  function frame(img, res) { img.style.cssText = res.cover_style || ''; }
+
+  function paintCard(card, res) {
+    var cover = card.querySelector('.cover'), z = cover.querySelector('.cv-zoom'), mark = cover.querySelector('.mark');
+    if (z) z.remove();
+    if (res.has_cover) {
       cover.classList.remove('fallback'); if (mark) mark.remove();
-      var im = document.createElement('img'); im.src = res.cover_url; im.alt = current.dataset.dest; cover.insertBefore(im, cover.firstChild);
+      var wrap = document.createElement('div'); wrap.className = 'cv-zoom';
+      var im = document.createElement('img'); im.src = res.cover_url; im.alt = card.dataset.title; frame(im, res);
+      wrap.appendChild(im); cover.insertBefore(wrap, cover.firstChild);
     } else {
       cover.classList.add('fallback');
       if (!mark) { mark = document.createElement('i'); mark.className = 'ti ti-map-pin mark'; cover.insertBefore(mark, cover.firstChild); }
     }
+    card.dataset.coverSrc = res.has_cover ? res.cover_url : '';
+    card.dataset.px = res.pos_x; card.dataset.py = res.pos_y; card.dataset.zoom = res.zoom;
+    var btn = card.querySelector('.cover-btn'); if (btn) btn.title = res.has_cover ? 'Change cover photo' : 'Add cover photo';
+
+    // keep the 3D ring postcard in sync
+    var face = document.querySelector('.face[data-trip="' + card.dataset.id + '"] .face-in');
+    if (face) {
+      var old = face.querySelector('img'); if (old) old.remove();
+      if (res.has_cover) { var fi = document.createElement('img'); fi.src = res.cover_url; fi.alt = ''; fi.draggable = false; frame(fi, res); face.insertBefore(fi, face.firstChild); }
+    }
   }
 
   window.openCover = function (tripId) {
-    current = document.getElementById('tc-' + tripId); chosen = null;
-    photosEl.innerHTML = otherEl.innerHTML = ''; photosH.style.display = otherH.style.display = emptyEl.style.display = 'none';
-    prev.innerHTML = '<span>Loading…</span>'; msg.textContent = ''; saveBtn.disabled = true; resetBtn.disabled = true;
-    modal.classList.add('open'); document.body.style.overflow = 'hidden';
-    fetch(current.dataset.coverUrl, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        if (!d.ok) { prev.innerHTML = '<span>' + (d.error || 'Could not load images.') + '</span>'; return; }
-        resetBtn.disabled = !d.custom;
-        var photos = d.images.filter(function (i) { return i.kind === 'photo'; }),
-            others = d.images.filter(function (i) { return i.kind !== 'photo'; });
-        photos.forEach(function (i) { photosEl.appendChild(thumb(i)); });
-        others.forEach(function (i) { otherEl.appendChild(thumb(i)); });
-        photosH.style.display = photos.length ? 'block' : 'none';
-        otherH.style.display = others.length ? 'block' : 'none';
-        emptyEl.style.display = d.images.length ? 'none' : 'block';
-        var sel = d.images.filter(function (i) { return i.selected; })[0] || photos[0];
-        if (sel) { prev.innerHTML = ''; var p = document.createElement('img'); p.src = sel.url; p.alt = 'Current cover'; prev.appendChild(p); }
-        else prev.innerHTML = '<span>No images yet — a destination cover is used.</span>';
-      })
-      .catch(function () { prev.innerHTML = '<span>Could not load images.</span>'; });
+    var card = document.getElementById('tc-' + tripId);
+    if (!card || !window.TripCover) return;
+    TripCover.open({
+      postUrl: card.dataset.coverPost, title: card.dataset.title,
+      src: card.dataset.coverSrc, px: card.dataset.px, py: card.dataset.py, zoom: card.dataset.zoom,
+      onSaved: function (res, okMsg) { paintCard(card, res); toast(okMsg || 'Cover updated'); }
+    });
   };
-  window.closeCover = function () { modal.classList.remove('open'); document.body.style.overflow = ''; };
-  modal.addEventListener('click', function (e) { if (e.target === modal) closeCover(); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeCover(); });
 
-  saveBtn.onclick = function () {
-    if (!chosen) return; saveBtn.disabled = true;
-    post({ action: 'set', expense_id: chosen.id }).then(function (res) {
-      if (!res.ok) { msg.textContent = res.error || 'Could not save.'; saveBtn.disabled = false; return; }
-      paintCard(res); closeCover(); toast('Cover photo updated');
+  /* ── 3D memory ring ── */
+  var stage = document.getElementById('stage'), ring = document.getElementById('ring');
+  if (stage && ring) {
+    var faces = Array.prototype.slice.call(ring.querySelectorAll('.face')), n = faces.length;
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var angle = 0, vel = reduce ? 0 : -0.14, tiltX = -9, tiltTarget = -9, dragging = false, moved = 0, lastX = 0, lastT = 0, visible = true, hover = false;
+
+    function radius() {
+      var w = faces[0].offsetWidth || 150;
+      return Math.round((w / 2) / Math.tan(Math.PI / n) + 18);
+    }
+    function layout() { ring.style.setProperty('--r', radius() + 'px'); }
+    function render() {
+      ring.style.transform = 'rotateX(' + tiltX.toFixed(2) + 'deg) rotateY(' + angle.toFixed(2) + 'deg)';
+      for (var i = 0; i < n; i++) {
+        var a = (i * 360 / n + angle) * Math.PI / 180, facing = Math.cos(a);   // 1 = facing you
+        faces[i].firstElementChild.style.setProperty('--b', (0.45 + 0.55 * Math.max(0, facing)).toFixed(3));
+        faces[i].style.pointerEvents = facing > 0.25 ? 'auto' : 'none';
+      }
+    }
+    var prev = performance.now();
+    function tick(now) {
+      var dt = Math.min(50, now - prev) / 16.67; prev = now;
+      if (!dragging) {
+        var target = reduce ? 0 : (hover ? -0.05 : -0.14);
+        vel += (target - vel) * 0.04 * dt;                      // glide back to the idle spin
+        angle += vel * dt;
+      }
+      tiltX += (tiltTarget - tiltX) * 0.08 * dt;
+      render();
+      if (visible && !document.hidden) requestAnimationFrame(tick); else running = false;
+    }
+    var running = false;
+    function start() { if (!running) { running = true; prev = performance.now(); requestAnimationFrame(tick); } }
+
+    layout(); render(); window.addEventListener('resize', function () { layout(); render(); });
+    if (!reduce) {
+      start();
+      if ('IntersectionObserver' in window) new IntersectionObserver(function (e) { visible = e[0].isIntersecting; if (visible) start(); }).observe(stage);
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) start(); });
+    }
+
+    stage.addEventListener('pointerdown', function (e) {
+      dragging = true; moved = 0; lastX = e.clientX; lastT = performance.now(); stage.classList.add('grabbing'); stage.setPointerCapture(e.pointerId);
     });
-  };
-  resetBtn.onclick = function () {
-    resetBtn.disabled = true;
-    post({ action: 'reset' }).then(function (res) {
-      if (!res.ok) { msg.textContent = res.error || 'Could not reset.'; resetBtn.disabled = false; return; }
-      paintCard(res); closeCover(); toast('Cover reset to default');
+    stage.addEventListener('pointermove', function (e) {
+      var r = stage.getBoundingClientRect(); tiltTarget = -9 + ((e.clientY - r.top) / r.height - 0.5) * -10;
+      hover = true;
+      if (!dragging) return;
+      var dx = e.clientX - lastX, now = performance.now(); moved += Math.abs(dx);
+      angle += dx * 0.45; vel = dx * 0.45 / Math.max(1, (now - lastT) / 16.67);
+      lastX = e.clientX; lastT = now; if (reduce) render();
     });
-  };
+    function up() { dragging = false; stage.classList.remove('grabbing'); if (reduce) vel = 0; else start(); }
+    stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+    stage.addEventListener('pointerleave', function () { hover = false; tiltTarget = -9; });
+    stage.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowLeft') { angle += 360 / n; e.preventDefault(); render(); }
+      if (e.key === 'ArrowRight') { angle -= 360 / n; e.preventDefault(); render(); }
+    });
+    // a drag is not a click: don't jump to a trip after spinning the ring
+    ring.addEventListener('click', function (e) {
+      var a = e.target.closest('a.face'); if (!a) return;
+      if (moved > 6) { e.preventDefault(); return; }
+      var card = document.querySelector(a.getAttribute('href'));
+      if (card && !card.classList.contains('hidden')) {
+        e.preventDefault();
+        card.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+        card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
+      }
+    });
+  }
+
+  /* ── Tilting stat tiles ── */
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && window.matchMedia('(hover:hover)').matches) {
+    Array.prototype.forEach.call(document.querySelectorAll('.tile'), function (t) {
+      t.addEventListener('pointermove', function (e) {
+        var r = t.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+        t.style.setProperty('--ry', ((x - 0.5) * 16).toFixed(2) + 'deg'); t.style.setProperty('--rx', ((0.5 - y) * 14).toFixed(2) + 'deg');
+        t.style.setProperty('--mx', (x * 100).toFixed(1) + '%'); t.style.setProperty('--my', (y * 100).toFixed(1) + '%');
+        t.classList.add('live');
+      });
+      t.addEventListener('pointerleave', function () { t.classList.remove('live'); t.style.setProperty('--rx', '0deg'); t.style.setProperty('--ry', '0deg'); });
+    });
+  }
 })();
 </script>
 <!-- ── Page Transition Loader ── -->

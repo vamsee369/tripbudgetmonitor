@@ -13,8 +13,9 @@ from io import BytesIO
 
 from django.db import models as db_models
 from django.core.exceptions import PermissionDenied
+from django.urls import reverse
 
-from .models import Trip, Expense, SplitBill, SplitEntry, SettlementPayment, TripCollaborator, TripChecklist
+from .models import Trip, Expense, SplitBill, SplitEntry, SettlementPayment, TripCollaborator, TripChecklist, MemoryLink
 
 import pytesseract
 import platform as _platform
@@ -192,13 +193,16 @@ def trip_list(request):
 
     Same visibility rules as before (visible_trips_for + ended before today).
     Trip History is a separate view/template and is not touched.
+
+    The cover photo is ONLY the image the trip creator uploaded
+    (Trip.cover_image). Expense photos are never used as a cover.
     """
     today = timezone.now().date()
     user = request.user
     trips = list(
         visible_trips_for(user)
         .filter(end_date__lt=today)
-        .select_related("created_by", "cover_expense")
+        .select_related("created_by")
         .order_by("-end_date", "-id")
     )
 
@@ -213,22 +217,12 @@ def trip_list(request):
                     .values("trip_id").annotate(total=db_models.Sum("amount"))):
             spent_by_trip[row["trip_id"]] = row["total"] or Decimal(0)
 
-    # One query for every image attached to these trips' expenses.
-    images_by_trip = defaultdict(list)
+    # Number of Drive folders saved on each trip's Memories page.
+    albums_by_trip = {}
     if trip_ids:
-        imgs = (
-            Expense.objects.filter(trip_id__in=trip_ids)
-            .exclude(receipt="").exclude(receipt__isnull=True)
-            .order_by("created_at", "id")
-        )
-        for e in imgs:
-            images_by_trip[e.trip_id].append(e)
-
-    # One query for this user's edit rights on shared trips.
-    edit_trip_ids = set(
-        TripCollaborator.objects.filter(user=user, trip_id__in=trip_ids, permission="edit")
-        .values_list("trip_id", flat=True)
-    )
+        for row in (MemoryLink.objects.filter(trip_id__in=trip_ids)
+                    .values("trip_id").annotate(n=db_models.Count("id"))):
+            albums_by_trip[row["trip_id"]] = row["n"]
 
     cards = []
     total_spent = Decimal(0)
@@ -242,23 +236,16 @@ def trip_list(request):
         days = (t.end_date - t.start_date).days + 1
         participants = t.get_participants()
 
-        photos = [e for e in images_by_trip.get(t.id, []) if e.receipt_type == "photo"]
-        chosen = t.cover_expense if (t.cover_expense_id and t.cover_expense and
-                                     t.cover_expense.trip_id == t.id and t.cover_expense.receipt) else None
-        cover_exp = chosen or (photos[0] if photos else None)
-        cover_url = _image_url(cover_exp) if cover_exp else None
-
-        can_edit = user.is_superuser or t.created_by_id == user.id or t.id in edit_trip_ids
-
         cards.append({
             "trip": t,
             "days": max(days, 1),
             "participant_count": len(participants),
             "fin": fin,
-            "cover_url": cover_url,
-            "has_custom_cover": bool(chosen),
-            "photo_count": len(images_by_trip.get(t.id, [])),
-            "can_edit": can_edit,
+            "cover_url": t.cover_url,
+            "has_custom_cover": t.has_cover,
+            "album_count": albums_by_trip.get(t.id, 0),
+            # Only the trip creator (or the site superuser) manages the cover.
+            "can_cover": is_trip_owner(t, user),
             "hue": _fallback_hue(t.destination),
             "year": t.end_date.year,
         })
@@ -271,6 +258,10 @@ def trip_list(request):
     destinations.discard("")
     return render(request, "trip/trip_list.html", {
         "cards": cards,
+        "ring_cards": cards[:8],              # newest trips feed the 3D memory ring
+        "ring_pad": list(range(max(0, 6 - len(cards[:8])))),   # "next stop" placeholders
+        "ring_n": max(6, len(cards[:8])),
+        "any_can_cover": any(c["can_cover"] for c in cards),
         "trips": trips,                       # kept for backward compatibility
         "stats": {
             "trips": len(cards),
@@ -282,66 +273,109 @@ def trip_list(request):
     })
 
 
+# ── Cover photo (upload + adjust, stored in Cloudinary) ───────────────────────
+
+COVER_MAX_BYTES = 10 * 1024 * 1024          # Cloudinary free plan limit per image
+COVER_FORMATS = {"JPEG", "PNG", "WEBP", "MPO"}
+
+
+def _clamp(value, lo, hi, default):
+    try:
+        return min(max(float(value), lo), hi)
+    except (TypeError, ValueError):
+        return default
+
+
+def _cover_payload(trip):
+    return {
+        "ok": True,
+        "has_cover": trip.has_cover,
+        "cover_url": trip.cover_url,
+        "cover_style": trip.cover_style if trip.has_cover else "",
+        "pos_x": round(trip.cover_pos_x, 2),
+        "pos_y": round(trip.cover_pos_y, 2),
+        "zoom": round(trip.cover_zoom, 3),
+    }
+
+
+def _delete_cover_file(field_file):
+    """Remove the old image from storage (Cloudinary). Never raises."""
+    try:
+        if field_file and field_file.name:
+            field_file.storage.delete(field_file.name)
+    except Exception:
+        pass
+
+
 @login_required
 def trip_cover(request, trip_id):
-    """Cover-photo management.
+    """Cover-photo management — only the trip creator (or superuser) may change it.
 
-    GET  -> JSON list of images already attached to this trip (existing storage).
-    POST -> action=set (expense_id) | action=reset. Needs edit permission.
+    GET  -> JSON with the current cover and its framing.
+    POST -> action=upload (image + pos_x/pos_y/zoom) | adjust | remove.
     """
     trip = get_object_or_404(Trip, id=trip_id)
 
-    if request.method == "POST":
-        if not user_can_edit(trip, request.user):
-            return JsonResponse({"ok": False, "error": "You don't have edit access to this trip."}, status=403)
-        action = request.POST.get("action", "set")
-        if action == "reset":
-            trip.cover_expense = None
-            trip.save(update_fields=["cover_expense"])
-        elif action == "set":
-            exp = Expense.objects.filter(
-                id=request.POST.get("expense_id") or 0, trip=trip
-            ).exclude(receipt="").exclude(receipt__isnull=True).first()
-            if not exp:
-                return JsonResponse({"ok": False, "error": "That image doesn't belong to this trip."}, status=400)
-            trip.cover_expense = exp
-            trip.save(update_fields=["cover_expense"])
-        else:
-            return JsonResponse({"ok": False, "error": "Unknown action."}, status=400)
+    if request.method != "POST":
+        if not user_can_view(trip, request.user):
+            return JsonResponse({"ok": False, "error": "No access."}, status=403)
+        data = _cover_payload(trip)
+        data["can_manage"] = is_trip_owner(trip, request.user)
+        return JsonResponse(data)
 
-        # Report what the card should now show.
-        auto = (Expense.objects.filter(trip=trip, receipt_type="photo")
-                .exclude(receipt="").exclude(receipt__isnull=True)
-                .order_by("created_at", "id").first())
-        cover = trip.cover_expense or auto
-        return JsonResponse({
-            "ok": True,
-            "cover_url": _image_url(cover) if cover else None,
-            "custom": bool(trip.cover_expense_id),
-        })
+    if not is_trip_owner(trip, request.user):
+        return JsonResponse(
+            {"ok": False, "error": "Only the person who created this trip can change its cover photo."},
+            status=403,
+        )
 
-    if not user_can_view(trip, request.user):
-        return JsonResponse({"ok": False, "error": "No access."}, status=403)
+    action = request.POST.get("action", "upload")
+    pos_x = _clamp(request.POST.get("pos_x"), 0, 100, trip.cover_pos_x)
+    pos_y = _clamp(request.POST.get("pos_y"), 0, 100, trip.cover_pos_y)
+    zoom = _clamp(request.POST.get("zoom"), 1, 3, trip.cover_zoom)
 
-    images = (Expense.objects.filter(trip=trip)
-              .exclude(receipt="").exclude(receipt__isnull=True)
-              .order_by("created_at", "id"))
-    items = []
-    for e in images:
-        url = _image_url(e)
-        if url:
-            items.append({
-                "id": e.id, "url": url, "title": e.title,
-                "kind": e.receipt_type or "receipt",
-                "selected": e.id == trip.cover_expense_id,
-            })
-    # Real photos first, then bills/receipts.
-    items.sort(key=lambda i: 0 if i["kind"] == "photo" else 1)
-    return JsonResponse({
-        "ok": True, "images": items,
-        "can_edit": user_can_edit(trip, request.user),
-        "custom": bool(trip.cover_expense_id),
-    })
+    if action == "upload":
+        f = request.FILES.get("image")
+        if not f:
+            return JsonResponse({"ok": False, "error": "Choose an image to upload."}, status=400)
+        if f.size > COVER_MAX_BYTES:
+            return JsonResponse({"ok": False, "error": "That image is larger than 10 MB. Pick a smaller one."}, status=400)
+        try:
+            from PIL import Image
+            img = Image.open(f)
+            fmt = img.format
+            img.verify()
+            f.seek(0)
+        except Exception:
+            return JsonResponse({"ok": False, "error": "That file isn't a valid image."}, status=400)
+        if fmt not in COVER_FORMATS:
+            return JsonResponse({"ok": False, "error": "Use a JPG, PNG or WebP image."}, status=400)
+
+        old = trip.cover_image if trip.cover_image else None
+        old_name = old.name if old else None
+        trip.cover_image = f
+        trip.cover_pos_x, trip.cover_pos_y, trip.cover_zoom = pos_x, pos_y, zoom
+        trip.save(update_fields=["cover_image", "cover_pos_x", "cover_pos_y", "cover_zoom"])
+        if old and old_name and old_name != trip.cover_image.name:
+            _delete_cover_file(old)
+
+    elif action == "adjust":
+        if not trip.cover_image:
+            return JsonResponse({"ok": False, "error": "Upload a cover photo first."}, status=400)
+        trip.cover_pos_x, trip.cover_pos_y, trip.cover_zoom = pos_x, pos_y, zoom
+        trip.save(update_fields=["cover_pos_x", "cover_pos_y", "cover_zoom"])
+
+    elif action == "remove":
+        old = trip.cover_image if trip.cover_image else None
+        trip.cover_image = None
+        trip.cover_pos_x, trip.cover_pos_y, trip.cover_zoom = 50.0, 50.0, 1.0
+        trip.save(update_fields=["cover_image", "cover_pos_x", "cover_pos_y", "cover_zoom"])
+        _delete_cover_file(old)
+
+    else:
+        return JsonResponse({"ok": False, "error": "Unknown action."}, status=400)
+
+    return JsonResponse(_cover_payload(trip))
 
 
 # ── Trip dashboard ────────────────────────────────────────────────────────────
@@ -817,20 +851,122 @@ def manage_access(request, trip_id):
     })
 
 
-# ── Trip photos/videos ────────────────────────────────────────────────────────
+# ── Trip memories (Drive albums, highlights, photos from the road) ────────────
+
+MAX_MEMORY_LINKS = 12
+
 
 @login_required
 def trip_photos_videos(request, trip_id):
+    """The trip's Memories page. URL name kept so every existing link works."""
     trip = get_object_or_404(Trip, id=trip_id)
     if not user_can_view(trip, request.user):
         raise PermissionDenied("You don't have access to this trip.")
-    drive_links = {
-        "trip_photos":    "https://drive.google.com/drive/folders/xxx1",
-        "trip_videos":    "https://drive.google.com/drive/folders/xxx2",
-        "trip_expenses":  "https://drive.google.com/drive/folders/xxx3",
-        "trip_documents": "https://drive.google.com/drive/folders/xxx4",
-    }
-    return render(request, 'trip/trip_photos_videos.html', {"trip": trip, "drive_links": drive_links})
+
+    expenses = list(Expense.objects.filter(trip=trip).order_by("created_at", "id"))
+    total_spent = sum((Decimal(e.amount) for e in expenses), Decimal(0))
+    days = max((trip.end_date - trip.start_date).days + 1, 1)
+    participants = trip.get_participants()
+
+    biggest = max(expenses, key=lambda e: e.amount) if expenses else None
+    cat_totals = defaultdict(Decimal)
+    for e in expenses:
+        cat_totals[e.custom_category or e.category] += Decimal(e.amount)
+    top_category = max(cat_totals.items(), key=lambda kv: kv[1]) if cat_totals else None
+
+    places = []
+    seen = set()
+    for e in expenses:
+        name = (e.location_name or "").strip()
+        if name and name.lower() not in seen:
+            seen.add(name.lower())
+            places.append(name)
+
+    moments = []
+    for e in expenses:
+        if e.receipt_type == "photo" and e.receipt:
+            try:
+                url = e.receipt.url
+            except Exception:
+                continue
+            moments.append({
+                "title": e.title,
+                "place": (e.location_name or "").strip(),
+                "date": e.created_at,
+                "thumb": Trip._cloudinary_resize(url, 700),
+                "full": Trip._cloudinary_resize(url, 1800),
+            })
+
+    return render(request, "trip/trip_photos_videos.html", {
+        "trip": trip,
+        "links": list(trip.memory_links.all()),
+        "can_edit": user_can_edit(trip, request.user),
+        "can_cover": is_trip_owner(trip, request.user),
+        "is_past": trip.end_date < timezone.now().date(),
+        "hue": _fallback_hue(trip.destination),
+        "days": days,
+        "traveller_count": len(participants),
+        "participants": participants,
+        "expense_count": len(expenses),
+        "total_spent": total_spent,
+        "biggest": biggest,
+        "top_category": top_category,
+        "favorite_count": sum(1 for e in expenses if e.is_favorite),
+        "places": places[:12],
+        "place_count": len(places),
+        "moments": moments,
+        "max_links": MAX_MEMORY_LINKS,
+        "kind_choices": MemoryLink.KIND_CHOICES,
+        "saved": request.GET.get("saved") == "1",
+    })
+
+
+@login_required
+def memory_links_save(request, trip_id):
+    """Replace this trip's Drive links with the submitted rows (owner/editors)."""
+    trip = get_object_or_404(Trip, id=trip_id)
+    if not user_can_edit(trip, request.user):
+        raise PermissionDenied("You don't have edit access to this trip.")
+    if request.method != "POST":
+        return redirect("trip_photos_videos", trip_id=trip.id)
+
+    from django.core.validators import URLValidator
+    from django.core.exceptions import ValidationError
+    from django.db import transaction
+
+    kinds = request.POST.getlist("kind")
+    labels = request.POST.getlist("label")
+    urls = request.POST.getlist("url")
+    valid_kinds = {k for k, _ in MemoryLink.KIND_CHOICES}
+    validator = URLValidator(schemes=["http", "https"])
+
+    rows, bad = [], []
+    for i, raw in enumerate(urls[:MAX_MEMORY_LINKS]):
+        url = (raw or "").strip()
+        if not url:
+            continue                                   # blank row = removed
+        try:
+            validator(url)
+        except ValidationError:
+            bad.append(i + 1)
+            continue
+        kind = kinds[i] if i < len(kinds) and kinds[i] in valid_kinds else "other"
+        label = (labels[i].strip() if i < len(labels) else "")[:60] or dict(MemoryLink.KIND_CHOICES)[kind]
+        rows.append((kind, label, url[:500]))
+
+    if bad:
+        from django.contrib import messages
+        messages.error(request, "Row(s) " + ", ".join(map(str, bad)) +
+                       " don't contain a valid link — nothing was saved.")
+        return redirect("trip_photos_videos", trip_id=trip.id)
+
+    with transaction.atomic():
+        trip.memory_links.all().delete()
+        MemoryLink.objects.bulk_create([
+            MemoryLink(trip=trip, kind=k, label=l, url=u, position=i)
+            for i, (k, l, u) in enumerate(rows)
+        ])
+    return redirect(reverse("trip_photos_videos", args=[trip.id]) + "?saved=1")
 
 
 # ── Budget alert helper ───────────────────────────────────────────────────────

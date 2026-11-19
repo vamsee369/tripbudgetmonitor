@@ -120,65 +120,162 @@ class TravelMemoriesTests(TestCase):
         self.assertIn("Not set", html)
         self.assertIn("No budget set", html)
 
-    # ── cover photo ───────────────────────────────────────────────────────
-    def _cover(self, user="owner"):
+    # ── cover photo (uploaded by the trip creator, never an expense photo) ──
+    @staticmethod
+    def _png(name="cover.png", size=(60, 40)):
+        from io import BytesIO
+        from PIL import Image
+        buf = BytesIO()
+        Image.new("RGB", size, (200, 80, 80)).save(buf, "PNG")
+        return SimpleUploadedFile(name, buf.getvalue(), content_type="image/png")
+
+    def _card(self, user="owner"):
         self.client.login(username=user, password="pw")
         return [c for c in self.client.get(reverse("trip_list")).context["cards"]
                 if c["trip"].id == self.goa.id][0]
 
-    def test_cover_auto_then_custom_then_reset(self):
-        self.assertIsNone(self._cover()["cover_url"])              # fallback
-        self._exp(self.goa, 10, receipt=_img("bill.gif"), receipt_type="bill")
-        self.assertIsNone(self._cover()["cover_url"])              # bills aren't auto-covers
-        first = self._exp(self.goa, 10, receipt=_img("a.gif"), receipt_type="photo")
-        second = self._exp(self.goa, 10, receipt=_img("b.gif"), receipt_type="photo")
-        self.assertIn(first.receipt.name.split("/")[-1].split(".")[0], self._cover()["cover_url"])
+    def test_expense_photos_never_become_the_cover(self):
+        self._exp(self.goa, 10, receipt=_img("a.gif"), receipt_type="photo")
+        self._exp(self.goa, 10, receipt=_img("b.gif"), receipt_type="bill")
+        card = self._card()
+        self.assertIsNone(card["cover_url"])
+        self.assertFalse(card["has_custom_cover"])
 
+    def test_owner_can_upload_adjust_and_remove_cover(self):
         url = reverse("trip_cover", args=[self.goa.id])
-        r = self.client.post(url, {"action": "set", "expense_id": second.id})
-        self.assertTrue(r.json()["ok"])
-        card = self._cover()
+        self.client.login(username="owner", password="pw")
+        r = self.client.post(url, {"action": "upload", "image": self._png(), "pos_x": "30", "pos_y": "70", "zoom": "1.8"})
+        self.assertTrue(r.json()["ok"], r.content)
+        self.goa.refresh_from_db()
+        self.assertTrue(self.goa.cover_image)
+        self.assertEqual((self.goa.cover_pos_x, self.goa.cover_pos_y, self.goa.cover_zoom), (30.0, 70.0, 1.8))
+        card = self._card()
         self.assertTrue(card["has_custom_cover"])
-        self.assertIn(second.receipt.name.split("/")[-1].split(".")[0], card["cover_url"])
+        self.assertIn("covers/", card["cover_url"])
+        self.assertIn("object-position:30.00% 70.00%", self.goa.cover_style)
 
-        r = self.client.post(url, {"action": "reset"})
+        # adjust only — values are clamped
+        r = self.client.post(url, {"action": "adjust", "pos_x": "250", "pos_y": "-5", "zoom": "9"})
         self.assertTrue(r.json()["ok"])
-        self.assertFalse(self._cover()["has_custom_cover"])
+        self.goa.refresh_from_db()
+        self.assertEqual((self.goa.cover_pos_x, self.goa.cover_pos_y, self.goa.cover_zoom), (100.0, 0.0, 3.0))
 
-    def test_cover_permissions(self):
-        e = self._exp(self.goa, 10, receipt=_img(), receipt_type="photo")
+        # replacing swaps the file; removing clears everything
+        old = self.goa.cover_image.name
+        self.client.post(url, {"action": "upload", "image": self._png("second.png")})
+        self.goa.refresh_from_db()
+        self.assertNotEqual(self.goa.cover_image.name, old)
+        r = self.client.post(url, {"action": "remove"})
+        self.assertTrue(r.json()["ok"])
+        self.goa.refresh_from_db()
+        self.assertFalse(self.goa.cover_image)
+        self.assertEqual((self.goa.cover_pos_x, self.goa.cover_pos_y, self.goa.cover_zoom), (50.0, 50.0, 1.0))
+
+    def test_only_the_creator_can_change_the_cover(self):
         url = reverse("trip_cover", args=[self.goa.id])
+        for who in ("viewer", "editor", "stranger"):       # even editors can't
+            self.client.login(username=who, password="pw")
+            r = self.client.post(url, {"action": "upload", "image": self._png()})
+            self.assertEqual(r.status_code, 403, who)
+        self.goa.refresh_from_db()
+        self.assertFalse(self.goa.cover_image)
         self.client.login(username="viewer", password="pw")
-        self.assertEqual(self.client.post(url, {"action": "set", "expense_id": e.id}).status_code, 403)
-        self.assertTrue(self.client.get(url).json()["ok"])         # may look
-        self.assertFalse(self.client.get(url).json()["can_edit"])
-        self.client.login(username="editor", password="pw")
-        self.assertTrue(self.client.post(url, {"action": "set", "expense_id": e.id}).json()["ok"])
+        self.assertFalse(self.client.get(url).json()["can_manage"])     # may look, not change
         self.client.login(username="stranger", password="pw")
         self.assertEqual(self.client.get(url).status_code, 403)
-        self.assertEqual(self.client.post(url, {"action": "reset"}).status_code, 403)
+        su = User.objects.create_superuser("root", password="pw")
+        self.client.login(username="root", password="pw")
+        self.assertTrue(self.client.post(url, {"action": "upload", "image": self._png()}).json()["ok"])
 
-    def test_cannot_use_another_trips_image(self):
-        other = self._exp(self.manali, 5, receipt=_img(), receipt_type="photo")
+    def test_cover_rejects_bad_files(self):
+        url = reverse("trip_cover", args=[self.goa.id])
         self.client.login(username="owner", password="pw")
-        r = self.client.post(reverse("trip_cover", args=[self.goa.id]), {"action": "set", "expense_id": other.id})
-        self.assertEqual(r.status_code, 400)
-        self.goa.refresh_from_db()
-        self.assertIsNone(self.goa.cover_expense_id)
+        junk = SimpleUploadedFile("x.png", b"not an image", content_type="image/png")
+        self.assertEqual(self.client.post(url, {"action": "upload", "image": junk}).status_code, 400)
+        self.assertEqual(self.client.post(url, {"action": "upload", "image": _img()}).status_code, 400)  # GIF
+        self.assertEqual(self.client.post(url, {"action": "upload"}).status_code, 400)
+        self.assertEqual(self.client.post(url, {"action": "adjust", "zoom": "2"}).status_code, 400)       # no cover yet
+        self.assertEqual(self.client.post(url, {"action": "nope"}).status_code, 400)
 
-    def test_deleting_cover_expense_resets_cover(self):
-        e = self._exp(self.goa, 10, receipt=_img(), receipt_type="photo")
-        self.goa.cover_expense = e; self.goa.save()
-        e.delete()
-        self.goa.refresh_from_db()
-        self.assertIsNone(self.goa.cover_expense_id)
-        self.assertEqual(Trip.objects.filter(id=self.goa.id).count(), 1)   # trip untouched
-
-    def test_edit_button_only_for_editors(self):
-        self.client.login(username="viewer", password="pw")
-        self.assertNotIn("openCover(", self.client.get(reverse("trip_list")).content.decode().split("<script>")[0])
+    def test_cover_button_only_for_the_creator(self):
         self.client.login(username="editor", password="pw")
-        self.assertIn("openCover(", self.client.get(reverse("trip_list")).content.decode())
+        html = self.client.get(reverse("trip_list")).content.decode()
+        self.assertNotIn('onclick="openCover(', html)
+        self.assertNotIn("cvm-frame", html)
+        self.client.login(username="owner", password="pw")
+        html = self.client.get(reverse("trip_list")).content.decode()
+        self.assertIn('onclick="openCover(', html)
+        self.assertIn("cvm-frame", html)
+
+    # ── 3D hero ───────────────────────────────────────────────────────────
+    def test_3d_ring_has_a_postcard_per_trip_and_pads_to_six(self):
+        self.client.login(username="owner", password="pw")
+        r = self.client.get(reverse("trip_list"))
+        html = r.content.decode()
+        self.assertEqual(r.context["ring_n"], 6)
+        self.assertEqual(html.count('class="face"'), 2)             # Goa + Manali
+        self.assertEqual(html.count('class="face pad"'), 4)
+        self.assertIn('href="#tc-%d"' % self.goa.id, html)
+
+    # ── memories page + drive links ───────────────────────────────────────
+    def _links_url(self):
+        return reverse("memory_links_save", args=[self.goa.id])
+
+    def test_editor_saves_drive_links_and_page_shows_them(self):
+        self.client.login(username="editor", password="pw")
+        r = self.client.post(self._links_url(), {
+            "kind": ["photos", "videos", "photos"],
+            "label": ["Day 1", "Reel", ""],
+            "url": ["https://drive.google.com/drive/folders/AAA", "https://drive.google.com/drive/folders/BBB", ""],
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(list(self.goa.memory_links.values_list("label", flat=True)), ["Day 1", "Reel"])  # blank row dropped
+        html = self.client.get(reverse("trip_photos_videos", args=[self.goa.id])).content.decode()
+        self.assertIn("https://drive.google.com/drive/folders/AAA", html)
+        self.assertIn("drive.google.com", html)
+        # saving again replaces the set (this is how links are updated)
+        self.client.post(self._links_url(), {"kind": ["other"], "label": ["Docs"], "url": ["https://example.com/x"]})
+        self.assertEqual(self.goa.memory_links.count(), 1)
+
+    def test_drive_links_permissions_and_validation(self):
+        data = {"kind": ["photos"], "label": ["x"], "url": ["https://drive.google.com/drive/folders/AAA"]}
+        for who in ("viewer", "stranger"):
+            self.client.login(username=who, password="pw")
+            self.assertEqual(self.client.post(self._links_url(), data).status_code, 403, who)
+        self.client.login(username="owner", password="pw")
+        self.client.post(self._links_url(), data)
+        # a bad row means NOTHING is changed, and javascript: links are refused
+        self.client.post(self._links_url(), {"kind": ["photos"], "label": ["evil"], "url": ["javascript:alert(1)"]})
+        self.assertEqual(list(self.goa.memory_links.values_list("label", flat=True)), ["x"])
+
+    def test_memories_page_for_viewer_has_no_edit_controls(self):
+        self.client.login(username="viewer", password="pw")
+        html = self.client.get(reverse("trip_photos_videos", args=[self.goa.id])).content.decode()
+        self.assertNotIn('id="manage-btn"', html)
+        self.assertNotIn('id="cover-btn"', html)
+        self.assertIn("No albums have been added yet", html)
+        self.client.login(username="stranger", password="pw")
+        self.assertEqual(self.client.get(reverse("trip_photos_videos", args=[self.goa.id])).status_code, 403)
+
+    def test_memories_page_shows_expense_photos_and_highlights(self):
+        self._exp(self.goa, 4200, receipt=_img("m.gif"), receipt_type="photo", location_name="Baga Beach")
+        self.client.login(username="owner", password="pw")
+        r = self.client.get(reverse("trip_photos_videos", args=[self.goa.id]))
+        html = r.content.decode()
+        self.assertEqual(len(r.context["moments"]), 1)
+        self.assertIn("Baga Beach", html)
+        self.assertIn("₹4,200", html)
+
+    def test_trip7_seed_migration_logic(self):
+        from importlib import import_module
+        from django.apps import apps as real_apps
+        mig = import_module("trip.migrations.0015_seed_trip7_drive_links")
+        t7 = Trip.objects.create(id=7, name="Seven", destination="X", start_date=date.today() - timedelta(days=9),
+                                 end_date=date.today() - timedelta(days=5), created_by=self.owner)
+        mig.seed(real_apps, None)
+        self.assertEqual(t7.memory_links.count(), 4)
+        mig.seed(real_apps, None)                                  # idempotent
+        self.assertEqual(t7.memory_links.count(), 4)
 
     # ── pages ─────────────────────────────────────────────────────────────
     def test_empty_state(self):

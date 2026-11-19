@@ -1,0 +1,285 @@
+{% comment %}
+  Cover photo manager — upload to Cloudinary + drag/zoom framing.
+  Include ONCE per page (only for people who may manage the cover):
+
+      {% include "trip/_cover_manager.html" %}
+
+  Then open it from JS:
+
+      TripCover.open({
+        postUrl: "{% url 'trip_cover' trip.id %}",
+        title:   "Goa",
+        src:     "<current cover url or empty>",
+        px: 50, py: 50, zoom: 1,
+        onSaved: function (payload) { ... }    // payload = JSON from trip_cover view
+      });
+
+  Needs the page to define the CSS variables --white --surface --border --accent
+  --accent-lt --text --text-md --muted --red (all the app's pages already do).
+{% endcomment %}
+{% csrf_token %}
+<style>
+  .cvm { position:fixed; inset:0; z-index:1000; display:none; align-items:center; justify-content:center; padding:16px; background:rgba(8,7,20,.66); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+  .cvm.open { display:flex; }
+  .cvm-sheet { background:var(--white); color:var(--text); border-radius:24px; width:min(640px,100%); max-height:94vh; overflow:auto; box-shadow:0 30px 80px rgba(0,0,0,.5); padding:18px 20px 20px; }
+  .cvm-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+  .cvm-head h3 { font-family:var(--serif, Georgia, serif); font-size:1.3rem; line-height:1.2; }
+  .cvm-head small { display:block; font-family:'Segoe UI',system-ui,sans-serif; font-size:.78rem; color:var(--muted); font-weight:500; margin-top:2px; }
+  .cvm-x { border:none; background:var(--surface); color:var(--text); width:34px; height:34px; border-radius:50%; cursor:pointer; font-size:1.1rem; flex-shrink:0; }
+
+  .cvm-frame { position:relative; aspect-ratio:16/10; border-radius:18px; overflow:hidden; background:var(--surface); border:2px dashed var(--border); cursor:default; touch-action:none; outline:none; }
+  .cvm-frame:focus-visible { box-shadow:0 0 0 4px rgba(99,102,241,.35); }
+  .cvm-frame.has-img { border-style:solid; border-color:transparent; cursor:grab; background:#14122b; }
+  .cvm-frame.has-img.dragging { cursor:grabbing; }
+  .cvm-frame.over { border-color:var(--accent); background:var(--accent-lt); }
+  .cvm-frame img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; user-select:none; -webkit-user-drag:none; pointer-events:none; display:none; will-change:transform; }
+  .cvm-frame.has-img img { display:block; }
+  .cvm-empty { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; text-align:center; padding:20px; color:var(--muted); font-size:.88rem; line-height:1.45; }
+  .cvm-empty i { font-size:2.2rem; color:var(--accent); }
+  .cvm-empty b { color:var(--text); font-size:.98rem; }
+  .cvm-frame.has-img .cvm-empty { display:none; }
+  .cvm-hint { position:absolute; left:50%; bottom:12px; transform:translateX(-50%); display:none; align-items:center; gap:6px; padding:6px 12px; border-radius:999px; font-size:.74rem; font-weight:700; color:#fff; background:rgba(20,18,43,.62); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); pointer-events:none; white-space:nowrap; }
+  .cvm-frame.has-img .cvm-hint { display:inline-flex; }
+  .cvm-frame.has-img.dragging .cvm-hint { opacity:0; }
+  /* thirds grid while dragging, helps framing */
+  .cvm-frame.has-img::after { content:""; position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .2s;
+    background:linear-gradient(to right,transparent 33.2%,rgba(255,255,255,.35) 33.3%,transparent 33.5%,transparent 66.5%,rgba(255,255,255,.35) 66.6%,transparent 66.8%),
+               linear-gradient(to bottom,transparent 33.2%,rgba(255,255,255,.35) 33.3%,transparent 33.5%,transparent 66.5%,rgba(255,255,255,.35) 66.6%,transparent 66.8%); }
+  .cvm-frame.has-img.dragging::after { opacity:1; }
+
+  .cvm-tools { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:14px; }
+  .cvm-zoom { flex:1 1 220px; display:flex; align-items:center; gap:10px; color:var(--muted); font-size:1.05rem; }
+  .cvm-zoom input { flex:1; accent-color:var(--accent); min-width:0; }
+  .cvm-zoom input:disabled { opacity:.4; }
+  .cvm-btn { border:1.5px solid var(--border); background:var(--surface); color:var(--text-md); font:inherit; font-weight:700; font-size:.85rem; padding:10px 16px; border-radius:12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all .15s; }
+  .cvm-btn:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+  .cvm-btn.save { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .cvm-btn.save:hover:not(:disabled) { background:#4f46e5; color:#fff; }
+  .cvm-btn.danger:hover:not(:disabled) { border-color:var(--red); color:var(--red); }
+  .cvm-btn.danger.confirm { border-color:var(--red); background:var(--red); color:#fff; }
+  .cvm-btn:disabled { opacity:.45; cursor:not-allowed; }
+  .cvm-msg { min-height:1.2em; margin-top:10px; font-size:.82rem; color:var(--red); }
+  .cvm-msg.ok { color:var(--accent); }
+  .cvm-foot { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:10px; }
+  .cvm-foot .grp { display:flex; gap:10px; flex-wrap:wrap; margin-left:auto; }
+  .cvm-note { font-size:.76rem; color:var(--muted); margin-top:8px; line-height:1.45; }
+  .cvm-spin { width:14px; height:14px; border-radius:50%; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; animation:cvm-spin .7s linear infinite; display:none; }
+  .cvm-btn.busy .cvm-spin { display:inline-block; }
+  .cvm-btn.busy .ti { display:none; }
+  @keyframes cvm-spin { to { transform:rotate(360deg); } }
+  @media (max-width:520px) { .cvm-sheet { padding:16px 14px 16px; border-radius:20px; } .cvm-foot .grp { width:100%; } .cvm-foot .grp .cvm-btn { flex:1; justify-content:center; } }
+</style>
+
+<div class="cvm" id="cvm" role="dialog" aria-modal="true" aria-labelledby="cvm-title">
+  <div class="cvm-sheet">
+    <div class="cvm-head">
+      <h3 id="cvm-title">Cover photo<small id="cvm-sub"></small></h3>
+      <button type="button" class="cvm-x" id="cvm-close" aria-label="Close"><i class="ti ti-x"></i></button>
+    </div>
+
+    <div class="cvm-frame" id="cvm-frame" tabindex="0" aria-label="Cover photo preview. Drag, or use arrow keys, to reposition.">
+      <img id="cvm-img" alt="" draggable="false"/>
+      <div class="cvm-empty">
+        <i class="ti ti-photo-up"></i>
+        <b>Drop a photo here</b>
+        <span>or use “Choose photo” below.<br>JPG, PNG or WebP · up to 10&nbsp;MB</span>
+      </div>
+      <span class="cvm-hint"><i class="ti ti-hand-move"></i> Drag to reposition</span>
+    </div>
+
+    <div class="cvm-tools">
+      <label class="cvm-zoom" title="Zoom">
+        <i class="ti ti-zoom-out" aria-hidden="true"></i>
+        <input type="range" id="cvm-zoom" min="1" max="3" step="0.01" value="1" aria-label="Zoom" disabled/>
+        <i class="ti ti-zoom-in" aria-hidden="true"></i>
+      </label>
+      <button type="button" class="cvm-btn" id="cvm-choose"><i class="ti ti-upload"></i><span id="cvm-choose-t">Choose photo</span></button>
+      <input type="file" id="cvm-file" accept="image/jpeg,image/png,image/webp" hidden/>
+    </div>
+    <p class="cvm-note">The photo is saved to your Cloudinary storage. What you see in the frame is exactly how it appears on the trip card.</p>
+    <div class="cvm-msg" id="cvm-msg" role="status" aria-live="polite"></div>
+
+    <div class="cvm-foot">
+      <button type="button" class="cvm-btn danger" id="cvm-remove" style="display:none;"><i class="ti ti-trash"></i><span>Remove cover</span></button>
+      <div class="grp">
+        <button type="button" class="cvm-btn" id="cvm-cancel">Cancel</button>
+        <button type="button" class="cvm-btn save" id="cvm-save" disabled><span class="cvm-spin"></span><i class="ti ti-check"></i><span>Save cover</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.getElementById('cvm');
+  if (!root) return;
+  var $ = function (id) { return document.getElementById(id); };
+  var frame = $('cvm-frame'), img = $('cvm-img'), zoomEl = $('cvm-zoom'), fileEl = $('cvm-file'),
+      chooseBtn = $('cvm-choose'), chooseT = $('cvm-choose-t'), saveBtn = $('cvm-save'),
+      removeBtn = $('cvm-remove'), msg = $('cvm-msg'), sub = $('cvm-sub');
+  var csrf = (root.parentNode.querySelector('input[name=csrfmiddlewaretoken]') || {}).value || '';
+
+  var S = null; // session state
+
+  function say(t, ok) { msg.textContent = t || ''; msg.className = 'cvm-msg' + (ok ? ' ok' : ''); }
+
+  function paint() {
+    var x = S.px.toFixed(2) + '%', y = S.py.toFixed(2) + '%';
+    img.style.objectPosition = x + ' ' + y;
+    img.style.transformOrigin = x + ' ' + y;
+    img.style.transform = 'scale(' + S.zoom.toFixed(3) + ')';
+    zoomEl.value = S.zoom;
+  }
+  function refresh() {
+    var has = !!S.src;
+    frame.classList.toggle('has-img', has);
+    zoomEl.disabled = !has;
+    chooseT.textContent = has ? 'Replace photo' : 'Choose photo';
+    removeBtn.style.display = S.hadCover ? '' : 'none';
+    saveBtn.disabled = !(S.file || (S.hadCover && S.dirty));
+    if (has) paint();
+  }
+  function setSrc(url) {
+    img.onload = function () { S.nw = img.naturalWidth; S.nh = img.naturalHeight; };
+    img.src = url; S.src = url;
+  }
+
+  /* ── open / close ── */
+  function open(o) {
+    S = { postUrl: o.postUrl, onSaved: o.onSaved, px: +o.px || 50, py: +o.py || 50, zoom: +o.zoom || 1,
+          src: o.src || '', hadCover: !!o.src, file: null, dirty: false, nw: 0, nh: 0, objUrl: null, busy: false };
+    sub.textContent = o.title || '';
+    say(''); removeBtn.classList.remove('confirm'); removeBtn.querySelector('span').textContent = 'Remove cover';
+    if (S.src) setSrc(S.src); else img.removeAttribute('src');
+    refresh();
+    root.classList.add('open'); document.body.style.overflow = 'hidden';
+    setTimeout(function () { (S.src ? frame : chooseBtn).focus(); }, 30);
+  }
+  function close() {
+    if (S && S.busy) return;
+    root.classList.remove('open'); document.body.style.overflow = '';
+    if (S && S.objUrl) URL.revokeObjectURL(S.objUrl);
+    fileEl.value = ''; S = null;
+  }
+  $('cvm-close').onclick = close; $('cvm-cancel').onclick = close;
+  root.addEventListener('mousedown', function (e) { if (e.target === root) close(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && root.classList.contains('open')) close(); });
+
+  /* ── choosing a photo ── */
+  function takeFile(f) {
+    if (!f) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { say('Use a JPG, PNG or WebP image.'); return; }
+    if (f.size > 25 * 1024 * 1024) { say('That image is too large. Pick one under 25 MB.'); return; }
+    say('Preparing photo…', true);
+    shrink(f).then(function (blob) {
+      if (blob.size > 10 * 1024 * 1024) { say('Even after resizing it is over 10 MB. Pick another photo.'); return; }
+      if (S.objUrl) URL.revokeObjectURL(S.objUrl);
+      S.file = blob; S.objUrl = URL.createObjectURL(blob);
+      S.px = 50; S.py = 50; S.zoom = 1; S.dirty = true;
+      setSrc(S.objUrl); refresh(); say('');
+    }).catch(function () { say('Could not read that image. Try a JPG or PNG.'); });
+  }
+  /* Phone photos are huge — resize to ≤ 2400px before uploading. */
+  function shrink(file) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file), im = new Image();
+      im.onload = function () {
+        var w = im.naturalWidth, h = im.naturalHeight, m = Math.max(w, h);
+        if (m <= 2400 && file.size <= 4 * 1024 * 1024) { URL.revokeObjectURL(url); return resolve(file); }
+        var k = Math.min(1, 2400 / m), c = document.createElement('canvas');
+        c.width = Math.round(w * k); c.height = Math.round(h * k);
+        var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob(function (b) { b ? resolve(b) : resolve(file); }, 'image/jpeg', 0.88);
+      };
+      im.onerror = function () { URL.revokeObjectURL(url); reject(); };
+      im.src = url;
+    });
+  }
+  chooseBtn.onclick = function () { fileEl.click(); };
+  fileEl.onchange = function () { takeFile(fileEl.files[0]); };
+  ['dragenter', 'dragover'].forEach(function (ev) { frame.addEventListener(ev, function (e) { if (e.dataTransfer && e.dataTransfer.types.indexOf('Files') > -1) { e.preventDefault(); frame.classList.add('over'); } }); });
+  ['dragleave', 'drop'].forEach(function (ev) { frame.addEventListener(ev, function () { frame.classList.remove('over'); }); });
+  frame.addEventListener('drop', function (e) { e.preventDefault(); takeFile(e.dataTransfer.files[0]); });
+
+  /* ── framing: drag + zoom ──
+     Image is object-fit:cover, object-position X% Y%, then scaled about that same
+     point. Moving the point by dx% shifts the picture by S px, where
+        S = zoom * (overflow + boxSize) - boxSize          (overflow = cover overflow)
+     so a pointer drag of d px changes the position by d / S. */
+  function sens(axis) {
+    var bw = frame.clientWidth, bh = frame.clientHeight;
+    if (!S.nw || !S.nh) return 0;
+    var k = Math.max(bw / S.nw, bh / S.nh);
+    var ow = Math.max(0, S.nw * k - bw), oh = Math.max(0, S.nh * k - bh);
+    return axis === 'x' ? S.zoom * (ow + bw) - bw : S.zoom * (oh + bh) - bh;
+  }
+  function nudge(dx, dy) {
+    var sx = sens('x'), sy = sens('y');
+    if (sx > 0.5) S.px = Math.min(100, Math.max(0, S.px - dx / sx * 100));
+    if (sy > 0.5) S.py = Math.min(100, Math.max(0, S.py - dy / sy * 100));
+    S.dirty = true; refresh();
+  }
+  var drag = null;
+  frame.addEventListener('pointerdown', function (e) {
+    if (!S || !S.src) return;
+    drag = { x: e.clientX, y: e.clientY }; frame.classList.add('dragging'); frame.setPointerCapture(e.pointerId);
+  });
+  frame.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    nudge(e.clientX - drag.x, e.clientY - drag.y); drag.x = e.clientX; drag.y = e.clientY;
+  });
+  function endDrag() { drag = null; frame.classList.remove('dragging'); }
+  frame.addEventListener('pointerup', endDrag); frame.addEventListener('pointercancel', endDrag);
+  frame.addEventListener('keydown', function (e) {
+    if (!S || !S.src) return;
+    var step = e.shiftKey ? 40 : 12, m = { ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] }[e.key];
+    if (m) { e.preventDefault(); nudge(m[0], m[1]); }
+  });
+  frame.addEventListener('wheel', function (e) {
+    if (!S || !S.src) return; e.preventDefault();
+    S.zoom = Math.min(3, Math.max(1, S.zoom - e.deltaY * 0.002)); S.dirty = true; refresh();
+  }, { passive: false });
+  zoomEl.addEventListener('input', function () { S.zoom = parseFloat(zoomEl.value) || 1; S.dirty = true; refresh(); });
+
+  /* ── saving ── */
+  function send(fd) {
+    S.busy = true;
+    return fetch(S.postUrl, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) { return r.json().catch(function () { return { ok: false, error: 'Unexpected server response.' }; }); })
+      .catch(function () { return { ok: false, error: 'Network problem. Check your connection and try again.' }; })
+      .then(function (res) { S.busy = false; return res; });
+  }
+  function finish(res, okMsg) {
+    var cb = S.onSaved; S.busy = false; close();
+    if (cb) cb(res, okMsg);
+  }
+  saveBtn.onclick = function () {
+    if (saveBtn.disabled || S.busy) return;
+    var fd = new FormData();
+    fd.append('pos_x', S.px.toFixed(2)); fd.append('pos_y', S.py.toFixed(2)); fd.append('zoom', S.zoom.toFixed(3));
+    if (S.file) { fd.append('action', 'upload'); fd.append('image', S.file, 'cover.jpg'); }
+    else fd.append('action', 'adjust');
+    saveBtn.disabled = true; saveBtn.classList.add('busy'); say(S.file ? 'Uploading…' : 'Saving…', true);
+    send(fd).then(function (res) {
+      saveBtn.classList.remove('busy');
+      if (!res.ok) { say(res.error || 'Could not save.'); saveBtn.disabled = false; return; }
+      finish(res, 'Cover photo saved');
+    });
+  };
+  removeBtn.onclick = function () {
+    if (!removeBtn.classList.contains('confirm')) {
+      removeBtn.classList.add('confirm'); removeBtn.querySelector('span').textContent = 'Click again to remove'; return;
+    }
+    var fd = new FormData(); fd.append('action', 'remove');
+    removeBtn.disabled = true; say('Removing…', true);
+    send(fd).then(function (res) {
+      removeBtn.disabled = false;
+      if (!res.ok) { say(res.error || 'Could not remove.'); return; }
+      finish(res, 'Cover removed');
+    });
+  };
+
+  window.TripCover = { open: open };
+})();
+</script>

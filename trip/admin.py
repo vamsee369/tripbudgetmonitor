@@ -1,12 +1,18 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Trip, Expense, SplitBill, SplitEntry, SettlementPayment, TripCollaborator, TripChecklist
+from .models import Trip, Expense, SplitBill, SplitEntry, SettlementPayment, TripCollaborator, TripChecklist, MemoryLink
+
+
+class MemoryLinkInline(admin.TabularInline):
+    model = MemoryLink
+    extra = 1
 
 
 @admin.register(Trip)
 class TripAdmin(admin.ModelAdmin):
     list_display = ('name', 'destination', 'start_date', 'end_date', 'budget', 'created_by')
     search_fields = ('name', 'destination')
+    inlines = [MemoryLinkInline]
 
 
 @admin.register(Expense)

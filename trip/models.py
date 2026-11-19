@@ -20,15 +20,58 @@ class Trip(models.Model):
     # ── Feature 13: Weather History (stored after trip completes) ─────────────
     weather_history = models.JSONField(default=list, blank=True)
 
-    # ── Travel Memories: chosen cover photo ───────────────────────────────────
-    # Points at an existing Expense image (Expense.receipt) so no image is
-    # stored twice. NULL = automatic cover (first "photo" attachment, else a
-    # generated destination fallback). SET_NULL means deleting that expense
-    # simply resets the cover instead of deleting anything.
+    # ── Travel Memories: cover photo ──────────────────────────────────────────
+    # Uploaded by the trip creator (stored in Cloudinary through the default
+    # media storage). NULL/blank = a generated destination cover is shown.
+    # Expense photos are NEVER used as the cover any more.
+    cover_image = models.ImageField(upload_to="covers/", blank=True, null=True)
+    # How the photo is framed: focal point (0-100 %) and zoom (1.0 - 3.0).
+    cover_pos_x = models.FloatField(default=50.0)
+    cover_pos_y = models.FloatField(default=50.0)
+    cover_zoom = models.FloatField(default=1.0)
+
+    # DEPRECATED — kept only so existing migrations/data stay valid. Unused.
     cover_expense = models.ForeignKey(
         "Expense", null=True, blank=True,
         on_delete=models.SET_NULL, related_name="+",
     )
+
+    # ── Cover helpers ─────────────────────────────────────────────────────────
+    @staticmethod
+    def _cloudinary_resize(url, width):
+        """Ask Cloudinary for a width-limited, auto-quality/auto-format copy."""
+        marker = "/upload/"
+        if url and "res.cloudinary.com" in url and marker in url:
+            return url.replace(marker, f"{marker}c_limit,w_{width},q_auto,f_auto/", 1)
+        return url
+
+    def _cover_raw_url(self):
+        try:
+            return self.cover_image.url if self.cover_image else None
+        except Exception:
+            return None
+
+    @property
+    def has_cover(self):
+        return bool(self._cover_raw_url())
+
+    @property
+    def cover_url(self):
+        """Optimised cover URL for cards / hero (None when no cover is set)."""
+        return self._cloudinary_resize(self._cover_raw_url(), 1600)
+
+    @property
+    def cover_thumb_url(self):
+        return self._cloudinary_resize(self._cover_raw_url(), 700)
+
+    @property
+    def cover_style(self):
+        """Inline CSS that frames the photo identically everywhere it is shown."""
+        x = min(max(float(self.cover_pos_x), 0.0), 100.0)
+        y = min(max(float(self.cover_pos_y), 0.0), 100.0)
+        z = min(max(float(self.cover_zoom), 1.0), 3.0)
+        return (f"object-position:{x:.2f}% {y:.2f}%;"
+                f"transform-origin:{x:.2f}% {y:.2f}%;transform:scale({z:.3f});")
 
     def get_participants(self):
         """Return participants as a clean list (no empty strings)."""
@@ -248,3 +291,42 @@ class TripChecklist(models.Model):
 
     def __str__(self):
         return f"Checklist — {self.user.username} / {self.trip.name}"
+
+
+class MemoryLink(models.Model):
+    """A Google Drive (or any https) folder of photos/videos/etc. for one trip.
+
+    Shown on the trip's Memories page. Trip owners and editors manage them
+    from that page; they can also be edited in the Django admin.
+    """
+    KIND_CHOICES = [
+        ("photos", "Photos"),
+        ("videos", "Videos"),
+        ("documents", "Documents"),
+        ("other", "Other"),
+    ]
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name="memory_links")
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES, default="photos")
+    label = models.CharField(max_length=60)
+    url = models.URLField(max_length=500)
+    position = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    ICONS = {"photos": "ti-photo", "videos": "ti-video", "documents": "ti-file-text", "other": "ti-folder"}
+
+    @property
+    def icon(self):
+        return self.ICONS.get(self.kind, "ti-folder")
+
+    @property
+    def host(self):
+        """Short site name shown under the label, e.g. 'drive.google.com'."""
+        from urllib.parse import urlparse
+        host = urlparse(self.url).netloc.lower()
+        return host[4:] if host.startswith("www.") else host
+
+    def __str__(self):
+        return f"{self.trip.name} — {self.label}"

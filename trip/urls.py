@@ -16,6 +16,7 @@ urlpatterns = [
     path('trip/<int:trip_id>/dashboard/', views.trip_dashboard, name='trip_dashboard'),
     path('trip/<int:trip_id>/cover/', views.trip_cover, name='trip_cover'),
     path('trip/<int:trip_id>/photos/', views.trip_photos_videos, name='trip_photos_videos'),
+    path('trip/<int:trip_id>/memory-links/', views.memory_links_save, name='memory_links_save'),
 
     # ✅ NEW — OCR endpoint
     path('trip/<int:trip_id>/ocr-receipt/', views.ocr_receipt, name='ocr_receipt'),
