@@ -230,12 +230,12 @@
   <header class="hero">
     <div class="hero-copy">
       <h1>Your Travel Memories</h1>
-      <p class="sub">Every journey has a story. Revisit your completed adventures.</p>
+      <p class="sub">Every trip tells a story. Look back at where you have been, what you spent and who you travelled with.</p>
       <div class="stats">
-        <div class="tile"><i class="ti ti-luggage"></i><div class="v">{{ stats.trips }}</div><div class="l">Completed trip{{ stats.trips|pluralize }}</div></div>
-        <div class="tile"><i class="ti ti-wallet"></i><div class="v">₹{{ stats.spent|floatformat:"-2g" }}</div><div class="l">Spent across trips</div></div>
-        <div class="tile"><i class="ti ti-map-pin"></i><div class="v">{{ stats.destinations }}</div><div class="l">Destination{{ stats.destinations|pluralize }} visited</div></div>
-        <div class="tile"><i class="ti ti-calendar-time"></i><div class="v">{{ stats.days }}</div><div class="l">Day{{ stats.days|pluralize }} of travel</div></div>
+        <div class="tile"><i class="ti ti-luggage"></i><div class="v">{{ stats.trips }}</div><div class="l">Trip{{ stats.trips|pluralize }} completed</div></div>
+        <div class="tile"><i class="ti ti-wallet"></i><div class="v">₹{{ stats.spent|floatformat:"-2g" }}</div><div class="l">Total spent</div></div>
+        <div class="tile"><i class="ti ti-map-pin"></i><div class="v">{{ stats.destinations }}</div><div class="l">Place{{ stats.destinations|pluralize }} explored</div></div>
+        <div class="tile"><i class="ti ti-calendar-time"></i><div class="v">{{ stats.days }}</div><div class="l">Day{{ stats.days|pluralize }} on the road</div></div>
       </div>
     </div>
 
@@ -253,7 +253,7 @@
         {% with n=ring_cards|length %}
         {% for pad in ring_pad %}
           <span class="face pad" style="--i:{{ forloop.counter0|add:n }}; --h:240;" aria-hidden="true">
-            <span class="face-in"><span><i class="ti ti-plane-departure"></i><span>Your next stop<br>goes here</span></span></span>
+            <span class="face-in"><span><i class="ti ti-plane-departure"></i><span>Your next trip<br>will appear here</span></span></span>
           </span>
         {% endfor %}
         {% endwith %}
@@ -265,18 +265,18 @@
 {% if cards %}
   <div class="toolbar">
     <label class="search"><i class="ti ti-search"></i>
-      <input type="text" id="q" placeholder="Search by destination…" autocomplete="off" aria-label="Search by destination"/>
+      <input type="text" id="q" placeholder="Search by destination or trip name…" autocomplete="off" aria-label="Search by destination or trip name"/>
     </label>
     <select id="year" aria-label="Filter by year">
       <option value="">All years</option>
       {% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}
     </select>
     <select id="sort" aria-label="Sort trips">
-      <option value="newest">Newest completed</option>
-      <option value="oldest">Oldest completed</option>
-      <option value="high">Highest expenditure</option>
-      <option value="low">Lowest expenditure</option>
-      <option value="long">Longest trip</option>
+      <option value="newest">Recently completed</option>
+      <option value="oldest">Earliest completed</option>
+      <option value="high">Highest spend</option>
+      <option value="low">Lowest spend</option>
+      <option value="long">Longest trips first</option>
     </select>
   </div>
   <div class="count-line">Showing <strong id="shown">{{ cards|length }}</strong> of {{ cards|length }} trip{{ cards|length|pluralize }}</div>
@@ -311,10 +311,10 @@
 
       <div class="body">
         <div class="info">
-          <div class="it"><i class="ti ti-calendar-event"></i><div><b>{{ t.start_date|date:"j M Y" }} – {{ t.end_date|date:"j M Y" }}</b><span>Trip dates</span></div></div>
+          <div class="it"><i class="ti ti-calendar-event"></i><div><b>{{ t.start_date|date:"j M Y" }} – {{ t.end_date|date:"j M Y" }}</b><span>Dates</span></div></div>
           <div class="it"><i class="ti ti-clock-hour-4"></i><div><b>{{ c.days }} day{{ c.days|pluralize }}</b><span>Duration</span></div></div>
-          <div class="it"><i class="ti ti-users"></i><div><b>{{ c.participant_count }} traveller{{ c.participant_count|pluralize }}</b><span>Participants</span></div></div>
-          <div class="it"><i class="ti ti-flag-check"></i><div><b>{{ t.end_date|date:"j M Y" }}</b><span>Completed</span></div></div>
+          <div class="it"><i class="ti ti-users"></i><div><b>{{ c.participant_count }} traveller{{ c.participant_count|pluralize }}</b><span>Travel group</span></div></div>
+          <div class="it"><i class="ti ti-flag-check"></i><div><b>{{ t.end_date|date:"j M Y" }}</b><span>Ended on</span></div></div>
         </div>
 
         <div class="fin">
@@ -342,15 +342,15 @@
             </div>
             <div class="fin-foot">
               <span>{{ f.pct }}% of budget used</span>
-              {% if f.state == 'over' %}<span class="pill over"><i class="ti ti-alert-triangle"></i> Overspent</span>
+              {% if f.state == 'over' %}<span class="pill over"><i class="ti ti-alert-triangle"></i> Over budget</span>
               {% elif f.no_expenses %}<span class="pill neutral">No expenses recorded</span>
-              {% elif f.state == 'warn' or f.state == 'full' %}<span class="pill warn"><i class="ti ti-flame"></i> Close to limit</span>
+              {% elif f.state == 'warn' or f.state == 'full' %}<span class="pill warn"><i class="ti ti-flame"></i> Near the limit</span>
               {% else %}<span class="pill good"><i class="ti ti-leaf"></i> Under budget</span>{% endif %}
             </div>
           {% else %}
             <div class="fin-foot" style="margin-top:12px;">
-              <span>{% if f.no_expenses %}No budget set · no expenses recorded{% else %}No budget was set for this trip{% endif %}</span>
-              <span class="pill neutral">Budget n/a</span>
+              <span>{% if f.no_expenses %}No budget set and no expenses recorded{% else %}No budget was set for this trip{% endif %}</span>
+              <span class="pill neutral">No budget</span>
             </div>
           {% endif %}
         </div>
@@ -359,9 +359,9 @@
           <a class="act primary" href="{% url 'trip_dashboard' t.id %}"><i class="ti ti-layout-dashboard"></i>Dashboard</a>
           <a class="act" href="{% url 'view_expenses' t.id %}"><i class="ti ti-receipt"></i>Expenses</a>
           <a class="act" href="{% url 'spending_heatmap' t.id %}"><i class="ti ti-chart-bar"></i>Analytics</a>
-          <a class="act" href="{% url 'settlement' t.id %}"><i class="ti ti-users-group"></i>Settlements</a>
-          <a class="act" href="{% url 'trip_photos_videos' t.id %}"><i class="ti ti-photo"></i>Memories</a>
-          <a class="act" href="{% url 'export_expenses_pdf' t.id %}" download><i class="ti ti-file-type-pdf"></i>PDF Report</a>
+          <a class="act" href="{% url 'settlement' t.id %}"><i class="ti ti-users-group"></i>Settle up</a>
+          <a class="act" href="{% url 'trip_photos_videos' t.id %}"><i class="ti ti-photo"></i>Photos &amp; videos</a>
+          <a class="act" href="{% url 'export_expenses_pdf' t.id %}" download><i class="ti ti-file-type-pdf"></i>PDF report</a>
         </nav>
       </div>
     </article>
@@ -369,7 +369,7 @@
   {% endfor %}
   </main>
 
-  <div class="no-results" id="none"><i class="ti ti-mood-empty"></i>No memories match your filters.</div>
+  <div class="no-results" id="none"><i class="ti ti-mood-empty"></i>No trips match your search. Try a different name or year.</div>
 
 {% else %}
   <section class="empty">
@@ -387,8 +387,8 @@
       <g transform="translate(70 44) rotate(-12)"><path d="M0 14 L44 0 L30 30 L22 18 Z" fill="#fff"/><path d="M22 18 L44 0" stroke="#c7d2fe" stroke-width="2"/></g>
       <path d="M20 96 C 40 80, 52 100, 70 84" stroke="#fff" stroke-width="2" stroke-dasharray="3 6" fill="none" opacity=".8" stroke-linecap="round"/>
     </svg>
-    <h3>Your travel memories are waiting to be created.</h3>
-    <p>Once a trip wraps up, it will land here as a keepsake — with its cover photo, what you spent and everything you did along the way.</p>
+    <h3>No completed trips yet</h3>
+    <p>When a trip ends, it moves here with its cover photo, total spend and shortcuts to its expenses, photos and settlements.</p>
     <a class="btn-cta" href="{% url 'make_trip' %}"><i class="ti ti-compass"></i> Plan your first trip</a>
   </section>
 {% endif %}
